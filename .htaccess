@@ -1,0 +1,57 @@
+# ============================================================
+# Planeazzy — .htaccess
+# Place in your document root (same folder as index.php)
+# ============================================================
+
+Options -Indexes
+DirectoryIndex index.php
+
+# ── Block sensitive dirs ──────────────────────────────────────
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(config|services|logs|storage)(/|$) - [F,L]
+    RewriteRule (^\.|/\.) - [F,L]
+</IfModule>
+
+# ── Block sensitive file types ────────────────────────────────
+<FilesMatch "\.(sql|log|env|sh|bat)$">
+    Require all denied
+</FilesMatch>
+
+# ── Strip server headers ──────────────────────────────────────
+Header always unset X-Powered-By
+Header always unset Server
+
+# ── Security headers ──────────────────────────────────────────
+Header always set X-Content-Type-Options  "nosniff"
+Header always set X-Frame-Options         "SAMEORIGIN"
+Header always set X-XSS-Protection        "1; mode=block"
+Header always set Referrer-Policy         "strict-origin-when-cross-origin"
+
+# ── Gzip ─────────────────────────────────────────────────────
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json
+</IfModule>
+
+# ── Cache static assets ───────────────────────────────────────
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css               "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType image/png              "access plus 1 month"
+    ExpiresByType image/jpeg             "access plus 1 month"
+    ExpiresByType image/svg+xml          "access plus 1 month"
+</IfModule>
+
+# ── Block common attack patterns ──────────────────────────────
+<IfModule mod_rewrite.c>
+    RewriteCond %{QUERY_STRING} (<|%3C).*script.*(>|%3E) [NC,OR]
+    RewriteCond %{QUERY_STRING} GLOBALS(=|\[) [OR]
+    RewriteCond %{QUERY_STRING} _REQUEST(=|\[)
+    RewriteRule .* - [F,L]
+</IfModule>
+
+# ── Force HTTPS (uncomment when SSL is active) ────────────────
+# RewriteEngine On
+# RewriteCond %{HTTPS} off
+# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
