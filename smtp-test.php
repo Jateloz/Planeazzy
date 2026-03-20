@@ -198,4 +198,33 @@ Control Panel &#8594; Network &#8594; Adapter &#8594; IPv4 Properties &#8594; Us
 </table>
 </div>
 
-</div></body></html>
+</div>
+
+<?php
+echo "<hr style='margin:28px 0;border-color:#e2e8f0'>";
+echo "<h2 style='font-family:sans-serif;font-size:18px;font-weight:800;margin-bottom:14px'>📁 Log File Locations</h2>";
+
+$candidates = [
+    ROOT_DIR . DIRECTORY_SEPARATOR . 'logs' . DIRECTORY_SEPARATOR,
+    sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'planeazzy_logs' . DIRECTORY_SEPARATOR,
+];
+
+foreach ($candidates as $dir) {
+    $logFile = $dir . 'mail_dev.log';
+    $exists  = file_exists($logFile);
+    $writable= is_writable($dir) || (!is_dir($dir) && @mkdir($dir, 0775, true));
+    $color   = $exists ? '#059669' : ($writable ? '#d97706' : '#dc2626');
+    $status  = $exists ? '✓ Found' : ($writable ? '○ Writable (no log yet)' : '✗ Not writable');
+    echo "<div style='font-family:monospace;font-size:13px;padding:10px 14px;margin-bottom:8px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0'>";
+    echo "<span style='color:{$color};font-weight:700'>{$status}</span> — " . htmlspecialchars($logFile);
+    echo "</div>";
+    if ($exists) {
+        $lines = array_slice(file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES), -5);
+        echo "<div style='font-family:monospace;font-size:12px;background:#0f172a;color:#94a3b8;padding:12px;border-radius:8px;margin-bottom:10px;white-space:pre'>";
+        echo htmlspecialchars(implode("\n", array_reverse($lines)));
+        echo "</div>";
+    }
+}
+echo "<p style='font-size:13px;color:#64748b;margin-top:12px'>OTP viewer: <a href='/dev-otp.php' style='color:#1978e5'>/dev-otp.php</a></p>";
+?>
+</body></html>
