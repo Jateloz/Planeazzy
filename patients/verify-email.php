@@ -3,110 +3,74 @@ require_once dirname(__DIR__). '/config/config.php';
 require_once dirname(__DIR__). '/services/Security.php';
 Security::startSession();
 if (Security::isAuthenticated()) { header('Location: /patients/dashboard.php'); exit; }
-$noSidebar = true;
-$pageTitle = 'Verify Email';
+$noSidebar = true; $pageTitle = 'Verify Your Email';
 include dirname(__DIR__). '/includes/header.php';
 $csrf = Security::csrfToken();
+// Dev mode: show OTP from log
+$devOtp = '';
+if (APP_ENV === 'development') {
+    foreach ([ROOT_DIR.'/logs/mail_dev.log', sys_get_temp_dir().'/planeazzy_logs/mail_dev.log'] as $logFile) {
+        if (file_exists($logFile)) {
+            $lines = array_reverse(file($logFile, FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES));
+            foreach ($lines as $line) { if (preg_match('/OTP for[^:]+:\s*(\d{4,8})/', $line, $m)) { $devOtp = $m[1]; break 2; } }
+        }
+    }
+}
 ?>
-<main class="page-main">
-  <div class="auth-wrap">
-    <div class="step-wrap">
-      <div class="step-row">
-        <span class="step-badge"><span class="material-symbols-outlined">mark_email_read</span> Step 3 of 5</span>
-        <span class="pct">40% Complete</span>
+<main style="flex:1;display:flex;align-items:center;justify-content:center;padding:48px 20px;background:var(--bg-light)">
+  <div style="width:100%;max-width:480px">
+    <div class="auth-card slide-up">
+      <div class="step-wrap">
+        <div class="step-row"><span class="step-badge"><i class="fa-solid fa-envelope-circle-check"></i> Verify Email</span><span class="step-pct">Step 2 of 3</span></div>
+        <div class="prog-track"><div class="prog-fill" style="width:66%"></div></div>
       </div>
-      <div class="prog-track"><div class="prog-fill" style="width:40%"></div></div>
-    </div>
-    <div class="auth-card">
-      <div class="card-icon"><span class="material-symbols-outlined">mark_email_read</span></div>
-      <h1 class="card-title">Verify your email</h1>
-      <p class="card-sub">We sent a 6-digit code to <strong id="emailShow">your email</strong>. It expires in <?= OTP_EXPIRY_MINUTES ?> minutes.</p>
-      
-      <?php
-      // ── DEV MODE: show OTP inline so you don't need email ────
-      if (APP_ENV === 'development') {
-          $logFile = ROOT_DIR . '/logs/mail_dev.log';
-          $devOtp  = '';
-          if (file_exists($logFile)) {
-              $lines = array_reverse(file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES));
-              foreach ($lines as $line) {
-                  if (preg_match('/OTP for[^:]+:\s*(\d{4,8})/', $line, $m)) {
-                      $devOtp = $m[1]; break;
-                  }
-              }
-          }
-          if ($devOtp): ?>
-      <div style="background:#fefce8;border:1.5px dashed #d97706;border-radius:10px;padding:14px 16px;margin-bottom:16px;text-align:center">
-        <div style="font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">⚡ Dev Mode — Latest OTP Code</div>
-        <div style="font-family:monospace;font-size:32px;font-weight:900;letter-spacing:10px;color:#1978e5"><?= htmlspecialchars($devOtp) ?></div>
-        <div style="font-size:11px;color:#92400e;margin-top:5px">Copy this code into the boxes above &bull; <a href="/dev-otp.php" style="color:#1978e5">View all codes</a></div>
+      <div style="text-align:center;margin-bottom:22px">
+        <div style="width:56px;height:56px;border-radius:14px;background:var(--primary-10);color:var(--primary);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:24px;border:1px solid var(--primary-20)"><i class="fa-solid fa-envelope-circle-check"></i></div>
+        <h2 style="font-size:22px;font-weight:900;color:var(--slate-900);margin-bottom:6px;letter-spacing:-.03em">Check your email</h2>
+        <p style="font-size:14px;color:var(--slate-500);line-height:1.6">We sent a 6-digit verification code to <strong id="emailShow" style="color:var(--slate-900)">your email</strong>. It expires in <?= OTP_EXPIRY_MINUTES ?> minutes.</p>
+      </div>
+      <?php if ($devOtp): ?>
+      <div style="background:#fefce8;border:1.5px dashed #d97706;border-radius:10px;padding:14px;text-align:center;margin-bottom:16px">
+        <div style="font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">⚡ Dev Mode — OTP Code</div>
+        <div style="font-family:monospace;font-size:34px;font-weight:900;letter-spacing:12px;color:var(--primary)"><?= htmlspecialchars($devOtp) ?></div>
+        <div style="font-size:11px;color:#92400e;margin-top:5px">Copy into boxes below · <a href="/dev-otp.php" style="color:var(--primary)">View all codes</a></div>
       </div>
       <?php endif; ?>
-      <?php } ?>
-
-      <div id="alertBox" class="alert hidden"><span class="material-symbols-outlined">info</span><span id="alertMsg"></span></div>
+      <div id="alertBox" class="alert hidden"><i class="fa-solid fa-circle-exclamation"></i><span id="alertMsg"></span></div>
       <div class="otp-row" id="otpGrid">
-        <?php for($i=0;$i<OTP_LENGTH;$i++): ?>
-        <input class="otp-digit" type="text" inputmode="numeric" maxlength="1" autocomplete="off" <?=$i===0?'autofocus':''?>>
-        <?php endfor; ?>
+        <?php for($i=0;$i<6;$i++): ?><input class="otp-digit" type="text" inputmode="numeric" maxlength="1" autocomplete="off" <?=$i===0?'autofocus':''>><?php endfor; ?>
       </div>
-      <button id="verifyBtn" class="btn btn-primary btn-full btn-lg" disabled>
-        <span class="material-symbols-outlined">verified</span> Verify Email
-      </button>
-      <div class="resend-row">
-        <button class="resend-btn" id="resendBtn">
-          <span class="material-symbols-outlined">refresh</span>
-          Didn't receive it? <span class="link">Resend Code</span>
-        </button>
+      <button id="verifyBtn" class="btn btn-primary btn-full btn-lg" disabled onclick="doVerify()"><i class="fa-solid fa-check-circle"></i> Verify Email</button>
+      <div class="resend-row" style="margin-top:16px">
+        <span class="resend-btn">Didn't receive a code? <button class="link" onclick="doResend()" style="background:none;border:none;cursor:pointer;color:var(--primary);font-weight:700;text-decoration:underline;font-family:'Inter',sans-serif">Resend code</button></span>
       </div>
-      <div class="sec-notice">
-        <div class="sec-inner">
-          <span class="material-symbols-outlined">verified_user</span>
-          Verification keeps your medical records private and secure.
+      <div style="margin-top:20px;padding-top:18px;border-top:1px solid var(--slate-100)">
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:12px;border-radius:8px;background:var(--primary-10);border:1px solid var(--primary-20);font-size:12px;color:var(--slate-600);line-height:1.6">
+          <i class="fa-solid fa-shield-halved" style="color:var(--primary)"></i>
+          Your code is valid for <?= OTP_EXPIRY_MINUTES ?> minutes. Never share it with anyone.
         </div>
       </div>
     </div>
-    <p class="tc mt2" style="font-size:13px;color:var(--muted)"><a href="/patients/register.php" style="color:var(--muted)">&larr; Back to Registration</a></p>
   </div>
 </main>
 <?php include dirname(__DIR__). '/includes/footer.php'; ?>
 <script>
-(function(){
-  const pid=sessionStorage.getItem('pz_pid'), email=sessionStorage.getItem('pz_email');
-  if(!pid){location.href='/patients/register.php';return;}
-  const es=document.getElementById('emailShow'); if(es&&email) es.textContent=email;
-  document.getElementById('verifyBtn').addEventListener('click',async function(){
-    const otp=OTP.value('#otpGrid');
-    if(otp.length<<?=OTP_LENGTH?>){
-      document.getElementById('alertBox').className='alert alert-err';
-      document.getElementById('alertMsg').textContent='Enter all <?=OTP_LENGTH?> digits.';
-      document.getElementById('alertBox').classList.remove('hidden'); return;
-    }
-    const r=await post('/api/auth/verify-otp.php',{patient_id:parseInt(pid),otp,csrf_token:'<?=htmlspecialchars($csrf)?>'},'verifyBtn','alertBox');
-    if(!r)return;
-    if(r.success){
-      document.getElementById('alertBox').className='alert alert-ok';
-      document.getElementById('alertMsg').textContent=r.message||'Email verified!';
-      document.getElementById('alertBox').classList.remove('hidden');
-      sessionStorage.setItem('pz_pid_pref',pid);
-      sessionStorage.removeItem('pz_pid'); sessionStorage.removeItem('pz_email');
-      setTimeout(()=>location.href='/patients/preferences.php',1100);
-    } else {
-      document.getElementById('alertBox').className='alert alert-err';
-      document.getElementById('alertMsg').textContent=r.message||'Invalid code.';
-      document.getElementById('alertBox').classList.remove('hidden');
-    }
-  });
-  let cd=0;
-  document.getElementById('resendBtn').addEventListener('click',async function(){
-    if(cd>0)return;
-    const r=await post('/api/auth/resend-otp.php',{patient_id:parseInt(pid),csrf_token:'<?=htmlspecialchars($csrf)?>'},null,'alertBox');
-    if(r?.success){
-      document.getElementById('alertBox').className='alert alert-info';
-      document.getElementById('alertMsg').textContent=r.message||'New code sent!';
-      document.getElementById('alertBox').classList.remove('hidden');
-      cd=60; const t=setInterval(()=>{cd--;const l=document.querySelector('#resendBtn .link');if(l)l.textContent=cd>0?`Resend in ${cd}s`:'Resend Code';if(cd<=0)clearInterval(t);},1000);
-    }
-  });
-})();
+OTP.init('#otpGrid');
+// Set email from session storage
+const storedEmail=sessionStorage.getItem('pz_pat_email');
+if(storedEmail){const el=document.getElementById('emailShow');if(el)el.textContent=storedEmail;}
+async function doVerify(){
+  const code=OTP.value('#otpGrid');
+  const id=sessionStorage.getItem('pz_pat_id')||0;
+  const r=await post('/api/auth/verify-otp.php',{csrf_token:document.getElementById('csrfToken').value,patient_id:parseInt(id),otp:code},'verifyBtn','alertBox');
+  if(!r)return;
+  if(r.success){UI.alert('ok','Email verified! Setting up your account…','alertBox');setTimeout(()=>location.href='/patients/preferences.php',1000);}
+  else UI.alert('err',r.message||'Invalid code. Please try again.','alertBox');
+}
+async function doResend(){
+  const id=sessionStorage.getItem('pz_pat_id')||0;
+  const r=await post('/api/auth/resend-otp.php',{csrf_token:document.getElementById('csrfToken').value,patient_id:parseInt(id)},null,'alertBox');
+  if(r?.success)UI.alert('ok','A new code has been sent to your email.','alertBox');
+  else UI.alert('err',r?.message||'Could not resend. Try again later.','alertBox');
+}
 </script>

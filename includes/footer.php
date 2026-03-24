@@ -1,71 +1,46 @@
 <?php
-$noSidebar = $noSidebar ?? false;
-$csrf      = Security::csrfToken();
+$noSidebar = $noSidebar ?? true;
+$csrf = Security::csrfToken();
 ?>
 <?php if (!$noSidebar): ?>
 </div><!-- /.main-wrap -->
-</div><!-- /.app-layout -->
-<button class="mob-tog" id="mobToggle" onclick="toggleSidebar()">
-  <span class="material-symbols-outlined">menu</span>
+</div><!-- /.sidebar layout flex -->
+
+<!-- Mobile sidebar toggle button -->
+<button onclick="toggleSidebar()" id="mobSidebarToggle"
+  style="display:none;position:fixed;bottom:20px;right:20px;z-index:300;width:48px;height:48px;border-radius:50%;background:var(--primary);color:#fff;border:none;box-shadow:0 10px 15px -3px rgba(25,120,229,.4);cursor:pointer;align-items:center;justify-content:center;font-size:18px">
+  <i class="fa-solid fa-bars"></i>
 </button>
 
-<!-- Location Modal -->
-<div class="modal-overlay" id="locationModal">
-  <div class="modal-box" style="max-width:440px">
-    <div class="modal-head">
-      <h2>Set Your Location</h2>
-      <button class="modal-close" onclick="closeModal('locationModal')"><span class="material-symbols-outlined">close</span></button>
+<!-- Book Appointment Modal (available on all dashboard pages) -->
+<div id="bookModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:500;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeModal('bookModal')">
+  <div style="background:var(--white);border-radius:20px;box-shadow:0 25px 50px -12px rgba(0,0,0,.25);max-height:90vh;overflow-y:auto;width:100%;max-width:520px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px 16px;border-bottom:1px solid var(--slate-100);position:sticky;top:0;background:var(--white);z-index:1;border-radius:20px 20px 0 0">
+      <h2 style="font-size:18px;font-weight:700;color:var(--slate-900)"><i class="fa-solid fa-calendar-plus" style="color:var(--primary);margin-right:8px"></i>Book Appointment</h2>
+      <button onclick="closeModal('bookModal')" style="width:30px;height:30px;border-radius:50%;background:var(--slate-100);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--slate-500)"><i class="fa-solid fa-xmark"></i></button>
     </div>
-    <div class="modal-body">
-      <div class="map-card" style="margin-bottom:16px">
-        <div class="map-box">
-          <div class="map-bg-img"></div><div class="map-overlay"></div><div class="map-hex-bg"></div>
-          <div class="map-ping"><div class="map-ring1"><div class="map-ring2"><div class="map-center"></div></div></div></div>
+    <div style="padding:20px 24px 28px">
+      <div id="bookAlertBox" class="alert hidden"></div>
+      <input type="hidden" id="csrfToken" value="<?= htmlspecialchars($csrf) ?>">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div class="form-group" style="margin-bottom:0"><label class="form-label">Service Type</label>
+          <select class="form-select" id="bookServiceType">
+            <option value="doctor">See a Doctor</option><option value="hospital">Hospital Visit</option>
+            <option value="telehealth">Telehealth (Video)</option><option value="lab">Lab Test</option><option value="pharmacy">Pharmacy</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0"><label class="form-label">Visit Type</label>
+          <select class="form-select" id="bookLocType">
+            <option value="in_person">In-Person</option><option value="telehealth">Telehealth</option><option value="home_visit">Home Visit</option>
+          </select>
         </div>
       </div>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Allow location access to find nearby healthcare services and enable emergency dispatch.</p>
-      <button class="btn btn-primary btn-full mb2" onclick="requestLocation()">
-        <span class="material-symbols-outlined">near_me</span> Use My Current Location
-      </button>
-      <div class="input-wrap">
-        <span class="input-ico"><span class="material-symbols-outlined">search</span></span>
-        <input type="text" id="manualLocInput" class="form-input has-ico" placeholder="Search city, area or address…">
-      </div>
-      <button class="btn btn-outline btn-full mt2" onclick="setManualLocation()">
-        <span class="material-symbols-outlined">edit_location_alt</span> Set This Location
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- Book Appointment Modal -->
-<div class="modal-overlay" id="bookModal">
-  <div class="modal-box">
-    <div class="modal-head">
-      <h2>Book Appointment</h2>
-      <button class="modal-close" onclick="closeModal('bookModal')"><span class="material-symbols-outlined">close</span></button>
-    </div>
-    <div class="modal-body">
-      <input type="hidden" id="csrf" value="<?= htmlspecialchars($csrf) ?>">
-      <div id="bookAlertBox" class="alert hidden"><span class="material-symbols-outlined">error</span><span id="bookAlertMsg"></span></div>
-      <div class="form-group">
-        <label class="form-label">Service Type</label>
-        <select class="form-select" id="bookServiceType">
-          <option value="doctor">See a Doctor</option>
-          <option value="clinic">Clinic Visit</option>
-          <option value="hospital">Hospital</option>
-          <option value="telehealth">Telehealth (Video)</option>
-          <option value="lab">Lab Test</option>
-          <option value="pharmacy">Pharmacy</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Provider (optional)</label>
+      <div class="form-group"><label class="form-label">Provider (optional)</label>
         <select class="form-select" id="bookProvider">
-          <option value="">-- Any available provider --</option>
+          <option value="">— Any available provider —</option>
           <?php
           try {
-            require_once dirname(__DIR__). '/services/Database.php';
+            if (!class_exists('Database')) require_once dirname(__DIR__). '/services/Database.php';
             $db2 = Database::getInstance();
             $pvs = $db2->fetchAll('SELECT id,name,type FROM providers WHERE is_active=1 AND is_verified=1 ORDER BY rating DESC LIMIT 20');
             foreach ($pvs as $p) echo '<option value="'.htmlspecialchars($p['id']).'">'.htmlspecialchars($p['name']).' ('.ucfirst($p['type']).')</option>';
@@ -73,53 +48,64 @@ $csrf      = Security::csrfToken();
           ?>
         </select>
       </div>
-      <div class="form-row">
-        <div class="form-group" style="margin-bottom:0">
-          <label class="form-label">Date</label>
-          <input type="date" id="bookDate" class="form-input" min="<?= date('Y-m-d') ?>">
-        </div>
-        <div class="form-group" style="margin-bottom:0">
-          <label class="form-label">Time</label>
-          <input type="time" id="bookTime" class="form-input" value="09:00">
-        </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div class="form-group" style="margin-bottom:0"><label class="form-label">Date</label><input type="date" id="bookDate" class="form-input" min="<?= date('Y-m-d') ?>"></div>
+        <div class="form-group" style="margin-bottom:0"><label class="form-label">Time</label><input type="time" id="bookTime" class="form-input" value="09:00"></div>
       </div>
-      <div class="form-group mt2">
-        <label class="form-label">Reason / Title</label>
-        <input type="text" id="bookTitle" class="form-input" placeholder="e.g. General check-up, Follow-up…">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Notes (optional)</label>
-        <textarea id="bookNotes" class="form-textarea" rows="2" placeholder="Any symptoms or additional info…"></textarea>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Visit Type</label>
-        <select class="form-select" id="bookLocType">
-          <option value="in_person">In-Person</option>
-          <option value="telehealth">Telehealth (Video Call)</option>
-          <option value="home_visit">Home Visit</option>
-        </select>
-      </div>
-      <button class="btn btn-primary btn-full btn-lg" id="bookBtn" onclick="submitBooking()">
-        <span class="material-symbols-outlined">event_available</span> Confirm Booking
+      <div class="form-group"><label class="form-label">Reason / Title</label><input type="text" id="bookTitle" class="form-input" placeholder="e.g. General check-up, Follow-up…"></div>
+      <div class="form-group"><label class="form-label">Notes (optional)</label><textarea id="bookNotes" class="form-textarea" rows="2" placeholder="Symptoms or additional info…"></textarea></div>
+      <button class="btn-join btn" id="bookBtn" style="width:100%;margin-top:8px;height:48px;border-radius:8px;font-size:15px;font-weight:700" onclick="submitBooking()">
+        <i class="fa-solid fa-calendar-check"></i> Confirm Booking
       </button>
     </div>
   </div>
 </div>
-<?php endif; ?>
 
-<?php if ($noSidebar): ?>
-<footer style="padding:24px 20px;text-align:center;border-top:1px solid var(--border);background:var(--white);margin-top:auto;flex-shrink:0">
-  <div style="display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-bottom:8px">
-    <a href="/patients/login.php"          style="display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border-radius:99px;font-size:12px;font-weight:600;color:var(--muted);border:1px solid var(--border);background:var(--white)"><span class="material-symbols-outlined" style="font-size:14px">person</span>Patients</a>
-    <a href="/providers/doctor/login.php"    style="display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border-radius:99px;font-size:12px;font-weight:600;color:var(--muted);border:1px solid var(--border);background:var(--white)"><span class="material-symbols-outlined" style="font-size:14px">stethoscope</span>Doctors</a>
-    <a href="/providers/clinic/login.php"    style="display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border-radius:99px;font-size:12px;font-weight:600;color:var(--muted);border:1px solid var(--border);background:var(--white)"><span class="material-symbols-outlined" style="font-size:14px">local_pharmacy</span>Clinics</a>
-    <a href="/providers/ambulance/login.php" style="display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border-radius:99px;font-size:12px;font-weight:600;color:var(--muted);border:1px solid var(--border);background:var(--white)"><span class="material-symbols-outlined" style="font-size:14px">ambulance</span>Ambulance</a>
+<?php else: ?>
+<!-- Simple public footer -->
+<footer class="pub-footer" style="margin-top:auto">
+  <div class="pub-footer-inner">
+    <div class="footer-grid">
+      <div>
+        <div class="footer-logo">
+          <div class="footer-logo-icon">
+           <img src="images\plan platform logo.png" alt="Planeazzy Logo" width="22" height="22" style="display: block;">
+          </div>
+          <span class="footer-logo-name">Planeazzy</span>
+        </div>
+        <p class="footer-desc">Connecting patients with the best healthcare providers in Kenya through technology and transparency.</p>
+        <div class="footer-socials">
+          <a class="footer-social-btn" href="#"><i class="fa-brands fa-x-twitter"></i></a>
+          <a class="footer-social-btn" href="#"><i class="fa-brands fa-instagram"></i></a>
+          <a class="footer-social-btn" href="#"><i class="fa-brands fa-facebook-f"></i></a>
+        </div>
+      </div>
+      <div><div class="footer-col-title">For Patients</div><ul class="footer-links"><li><a href="/patients/search.php">Search Doctors</a></li><li><a href="/patients/search.php?type=hospital">Medical Centers</a></li><li><a href="/patients/register.php">How it Works</a></li><li><a href="#">FAQ</a></li></ul></div>
+      <div><div class="footer-col-title">For Providers</div><ul class="footer-links"><li><a href="/providers/doctor/register.php">List Your Practice</a></li><li><a href="/providers/clinic/register.php">Clinic Management</a></li><li><a href="/providers/ambulance/register.php">Ambulance Services</a></li><li><a href="#">Support Center</a></li></ul></div>
+      <div><div class="footer-col-title">Legal</div><ul class="footer-links"><li><a href="#">Privacy Policy</a></li><li><a href="#">Terms of Service</a></li><li><a href="#">Cookie Policy</a></li><li><a href="#">Ethics &amp; Compliance</a></li></ul></div>
+    </div>
+    <div class="footer-bottom">
+      <p class="footer-copy">© 2025 Planeazzy Ltd. All rights reserved. Kenya's #1 Healthcare Booking Platform.</p>
+      <div class="footer-contacts">
+        <span class="footer-contact"><i class="fa-solid fa-phone"></i> +254 700 000 000</span>
+        <span class="footer-contact"><i class="fa-solid fa-envelope"></i> hello@planeazzy.co.ke</span>
+      </div>
+    </div>
   </div>
-  <p style="font-size:11px;color:var(--silver)">&copy; 2025 Planeazzy Healthcare Solutions. All rights reserved.</p>
 </footer>
 <?php endif; ?>
 
 <input type="hidden" id="csrfToken" value="<?= htmlspecialchars($csrf) ?>">
 <script src="/assets/js/app.js"></script>
+<script>
+// Show mobile sidebar toggle on small screens
+(function(){
+  var btn=document.getElementById('mobSidebarToggle');
+  if(btn){
+    if(window.innerWidth<=768)btn.style.display='flex';
+    window.addEventListener('resize',function(){btn.style.display=window.innerWidth<=768?'flex':'none';});
+  }
+})();
+</script>
 </body>
 </html>

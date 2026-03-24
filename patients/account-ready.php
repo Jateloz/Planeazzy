@@ -2,41 +2,26 @@
 require_once dirname(__DIR__). '/config/config.php';
 require_once dirname(__DIR__). '/services/Security.php';
 Security::startSession();
-$noSidebar = true;
-$pageTitle = 'Welcome to Planeazzy!';
+$noSidebar = true; $pageTitle = 'Account Ready!';
 include dirname(__DIR__). '/includes/header.php';
+$name = htmlspecialchars($_SESSION['patient_name'] ?? 'there');
 ?>
-<main class="page-main" style="gap:28px">
-  <div style="width:100%;max-width:540px">
-    <div class="step-wrap">
-      <div class="step-row">
-        <span class="step-badge"><span class="material-symbols-outlined">celebration</span> Step 5 of 5 — Done!</span>
-        <span class="pct">100% Complete</span>
-      </div>
-      <div class="prog-track"><div class="prog-fill" style="width:100%"></div></div>
+<main style="flex:1;display:flex;align-items:center;justify-content:center;padding:48px 20px;background:var(--bg-light)">
+  <div style="width:100%;max-width:520px;text-align:center" class="slide-up">
+    <div style="width:80px;height:80px;border-radius:50%;background:rgba(22,163,74,.1);color:var(--green);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:36px;border:3px solid rgba(22,163,74,.2)">
+      <i class="fa-solid fa-circle-check"></i>
     </div>
-  </div>
-  <div style="width:100%;max-width:540px;border-radius:var(--r-2xl);overflow:hidden;position:relative;height:200px;box-shadow:var(--sh-lg)">
-    <img src="https://images.unsplash.com/photo-1631217868264-e5b90bb7e133?w=800&q=80" alt="Healthcare" style="width:100%;height:100%;object-fit:cover">
-    <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(25,120,229,.5),transparent 50%)"></div>
-    <div style="position:absolute;bottom:14px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.96);backdrop-filter:blur(10px);padding:7px 18px;border-radius:99px;display:flex;align-items:center;gap:7px;font-family:var(--ff-head);font-weight:800;font-size:13px;color:var(--navy);white-space:nowrap;box-shadow:var(--sh)">
-      <span style="width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0;animation:blink 1.5s ease-in-out infinite"></span>
-      Account Active
+    <h2 style="font-size:30px;font-weight:900;color:var(--slate-900);letter-spacing:-.03em;margin-bottom:12px">You're all set, <?= $name ?>! 🎉</h2>
+    <p style="font-size:15px;color:var(--slate-500);line-height:1.8;margin-bottom:28px">Your Planeazzy account is ready. Start booking appointments with top Kenyan specialists or explore hospitals near you.</p>
+    <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:28px">
+      <?php foreach([['fa-stethoscope','Find a Doctor'],['fa-video','Telehealth'],['fa-truck-medical','Ambulance'],['fa-location-dot','Nearby Care']] as[$ic,$lb]):?>
+      <span style="display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:9999px;background:var(--white);border:1.5px solid var(--slate-200);font-size:13px;font-weight:700;color:var(--slate-600)">
+        <i class="fa-solid <?=$ic?>" style="color:var(--primary)"></i><?=$lb?>
+      </span>
+      <?php endforeach;?>
     </div>
-  </div>
-  <div class="success-wrap">
-    <div class="success-ring"><span class="material-symbols-outlined">check_circle</span></div>
-    <h1 class="success-title">You're all set!</h1>
-    <p class="success-sub">Your Planeazzy account is active. Access doctors, clinics, hospitals, ambulance services, telehealth, and your complete health dashboard — all in one place.</p>
-    <div class="chips">
-      <div class="chip"><span class="material-symbols-outlined">calendar_month</span> Book Appointments</div>
-      <div class="chip"><span class="material-symbols-outlined">video_chat</span> Telehealth</div>
-      <div class="chip"><span class="material-symbols-outlined">emergency</span> Emergency</div>
-      <div class="chip"><span class="material-symbols-outlined">folder_health</span> Health Records</div>
-    </div>
-    <a href="/patients/login.php" class="btn btn-primary btn-full btn-lg" style="max-width:340px;margin:0 auto;display:flex">
-      <span class="material-symbols-outlined">login</span> Sign In to Dashboard
-    </a>
+    <a href="/patients/dashboard.php" class="btn btn-primary btn-lg" style="margin-right:10px"><i class="fa-solid fa-gauge"></i> Go to Dashboard</a>
+    <a href="/patients/search.php" class="btn btn-ghost btn-lg"><i class="fa-solid fa-magnifying-glass"></i> Find a Doctor</a>
   </div>
 </main>
 <?php include dirname(__DIR__). '/includes/footer.php'; ?>
