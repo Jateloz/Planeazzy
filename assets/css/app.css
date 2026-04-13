@@ -6,6 +6,28 @@
 ================================================================ */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
+
+/* 1. Global fix for horizontal sway */
+html, body {
+  max-width: 100%;
+  overflow-x: hidden; /* This stops the left-right movement */
+  position: relative;
+  margin: 0;
+  padding: 0;
+}
+
+/* 2. Clip all sections so blobs/badges don't leak out */
+.hero-section, 
+.payment-section, 
+.how-section, 
+.specialty-section, 
+.hospitals-section, 
+.provider-banner,
+.page-content {
+  overflow: hidden; /* This cuts off anything sticking out past the screen edge */
+  width: 100%;
+}
+
 :root{
   --primary:#1978e5;
   --primary-h:#1462c4;
@@ -48,7 +70,7 @@
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-font-smoothing:antialiased;scroll-behavior:smooth}
-body{font-family:'Inter',sans-serif;background:var(--bg-light);color:var(--slate-900);font-size:14px;line-height:1.5;min-height:100vh}
+body{font-family:'Inter',sans-serif;background:var(--bg-light);color:var(--slate-900);font-size:13px;line-height:1.5;min-height:100vh}
 a{color:var(--primary);text-decoration:none}
 img{max-width:100%;display:block}
 button{cursor:pointer;font-family:'Inter',sans-serif}
@@ -75,16 +97,16 @@ input,select,textarea{font-family:'Inter',sans-serif}
 }
 .pub-header-inner{
   max-width:1280px;margin:0 auto;padding:0 24px;
-  height:80px;display:flex;align-items:center;justify-content:space-between;
+  height:62px;display:flex;align-items:center;justify-content:space-between;
 }
 .pub-logo{display:flex;align-items:center;gap:8px;text-decoration:none}
 .pub-logo-icon{width:40px;height:40px;background:var(--primary);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;flex-shrink:0}
-.pub-logo-name{font-size:24px;font-weight:900;color:var(--primary);letter-spacing:-.04em;line-height:1}
-.pub-nav{display:flex;align-items:center;gap:32px}
-.pub-nav a{font-size:14px;font-weight:600;color:var(--slate-700)}
+.pub-logo-name{font-size:19px;font-weight:900;color:var(--primary);letter-spacing:-.04em;line-height:1}
+.pub-nav{display:flex;align-items:center;gap:20px}
+.pub-nav a{font-size:13px;font-weight:600;color:var(--slate-700)}
 .pub-nav-divider{width:1px;height:16px;background:var(--slate-300)}
-.pub-nav-lang{display:flex;align-items:center;gap:4px;font-size:14px;font-weight:600;color:var(--slate-700);background:none;border:none;cursor:pointer;padding:0}
-.btn-get-started{background:var(--primary);color:#fff;padding:10px 24px;border-radius:9999px;font-size:14px;font-weight:700;border:none;cursor:pointer;box-shadow:0 10px 15px -3px rgba(25,120,229,.2)}
+.pub-nav-lang{display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--slate-700);background:none;border:none;cursor:pointer;padding:0}
+.btn-get-started{background:var(--primary);color:#fff;padding:8px 18px;border-radius:9999px;font-size:12px;font-weight:700;border:none;cursor:pointer;box-shadow:0 10px 15px -3px rgba(25,120,229,.2)}
 
 /* Hero */
 .hero-section{
@@ -92,9 +114,9 @@ input,select,textarea{font-family:'Inter',sans-serif}
 }
 .hero-inner{max-width:1280px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
 .hero-badge{display:inline-block;padding:4px 12px;border-radius:9999px;background:var(--primary-10);color:var(--primary);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:24px}
-.hero-title{font-size:clamp(36px,5vw,60px);font-weight:900;line-height:1.1;margin-bottom:24px;letter-spacing:-.03em}
+.hero-title{font-size:clamp(22px,4.5vw,48px);font-weight:900;line-height:1.1;margin-bottom:18px;letter-spacing:-.03em}
 .hero-title .highlight{color:var(--primary)}
-.hero-desc{font-size:18px;color:var(--slate-600);margin-bottom:40px;max-width:440px;line-height:1.7}
+.hero-desc{font-size:14px;color:var(--slate-600);margin-bottom:40px;max-width:440px;line-height:1.7}
 
 /* Search bar (hero) */
 .hero-search{
@@ -113,11 +135,11 @@ input,select,textarea{font-family:'Inter',sans-serif}
 .hero-search-field i{color:var(--slate-400);font-size:18px;flex-shrink:0}
 .hero-search-field input,.hero-search-field select{
   border:none;outline:none;background:transparent;
-  font-family:'Inter',sans-serif;font-size:14px;color:var(--slate-900);width:100%;
+  font-family:'Inter',sans-serif;font-size:13px;color:var(--slate-900);width:100%;
 }
 .hero-search-field input::placeholder{color:var(--slate-400)}
 .hero-search-field select{color:var(--slate-500);cursor:pointer;appearance:none;-webkit-appearance:none}
-.hero-search-btn{width:56px;height:56px;background:var(--primary);color:#fff;border:none;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.hero-search-btn{width:46px;height:46px;background:var(--primary);color:#fff;border:none;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
 
 /* Hero visual */
 .hero-visual{position:relative}
@@ -136,7 +158,7 @@ input,select,textarea{font-family:'Inter',sans-serif}
 /* Payment choice section */
 .payment-section{padding:80px 24px;background:var(--slate-50)}
 .payment-inner{max-width:896px;margin:0 auto;text-align:center}
-.payment-inner h3{font-size:30px;font-weight:700;margin-bottom:16px;letter-spacing:-.02em}
+.payment-inner h3{font-size:20px;font-weight:700;margin-bottom:16px;letter-spacing:-.02em}
 .payment-inner p{color:var(--slate-600);margin-bottom:48px}
 .payment-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
 .payment-card{
@@ -149,8 +171,8 @@ input,select,textarea{font-family:'Inter',sans-serif}
   display:flex;align-items:center;justify-content:center;
   margin:0 auto 24px;font-size:36px;
 }
-.payment-card h4{font-size:20px;font-weight:700;margin-bottom:8px}
-.payment-card p{font-size:14px;color:var(--slate-500);margin-bottom:24px;line-height:1.6}
+.payment-card h4{font-size:15px;font-weight:700;margin-bottom:8px}
+.payment-card p{font-size:13px;color:var(--slate-500);margin-bottom:24px;line-height:1.6}
 .payment-card-link{font-size:14px;font-weight:700;display:inline-flex;align-items:center;gap:8px}
 .payment-card.pc-insurance .payment-card-icon{background:var(--primary-10);color:var(--primary)}
 .payment-card.pc-insurance .payment-card-link{color:var(--primary)}
@@ -159,7 +181,7 @@ input,select,textarea{font-family:'Inter',sans-serif}
 
 /* How it works */
 .how-section{padding:96px 24px;max-width:1280px;margin:0 auto}
-.how-section h3{font-size:30px;font-weight:700;text-align:center;margin-bottom:16px}
+.how-section h3{font-size:20px;font-weight:700;text-align:center;margin-bottom:16px}
 .how-underline{width:80px;height:4px;background:var(--primary);border-radius:9999px;margin:0 auto 64px}
 .how-grid{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:32px}
 .how-connector{position:absolute;top:32px;left:0;right:0;height:2px;background:var(--slate-100);z-index:0}
@@ -174,13 +196,13 @@ input,select,textarea{font-family:'Inter',sans-serif}
 .how-step-icon.active i{color:var(--primary);font-size:22px}
 .how-step-icon.inactive i{color:var(--slate-400);font-size:22px}
 .how-step h5{font-weight:700;margin-bottom:8px}
-.how-step p{font-size:14px;color:var(--slate-500)}
+.how-step p{font-size:12px;color:var(--slate-500)}
 
 /* Specialty section */
 .specialty-section{padding:96px 24px;background:var(--white)}
 .specialty-inner{max-width:1280px;margin:0 auto}
 .specialty-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:48px}
-.specialty-header h3{font-size:30px;font-weight:700}
+.specialty-header h3{font-size:20px;font-weight:700}
 .specialty-header a{color:var(--primary);font-weight:700;font-size:14px;display:flex;align-items:center;gap:4px}
 .specialty-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:16px}
 .specialty-card{
@@ -207,8 +229,8 @@ input,select,textarea{font-family:'Inter',sans-serif}
 }
 .hospital-card-rating i{color:#f59e0b;font-size:12px}
 .hospital-card-body{padding:24px}
-.hospital-card-body h4{font-weight:700;font-size:18px;margin-bottom:4px}
-.hospital-card-loc{color:var(--slate-500);font-size:14px;display:flex;align-items:center;gap:4px;margin-bottom:16px}
+.hospital-card-body h4{font-weight:700;font-size:14px;margin-bottom:4px}
+.hospital-card-loc{color:var(--slate-500);font-size:12px;display:flex;align-items:center;gap:4px;margin-bottom:16px}
 .hospital-tags{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px}
 .hospital-tag{font-size:10px;padding:4px 8px;background:var(--slate-100);border-radius:6px}
 .btn-view-docs{
@@ -226,8 +248,8 @@ input,select,textarea{font-family:'Inter',sans-serif}
   display:grid;grid-template-columns:1fr 1fr;
 }
 .provider-banner-content{position:relative;z-index:1;color:#fff}
-.provider-banner-content h3{font-size:36px;font-weight:900;margin-bottom:24px;line-height:1.2}
-.provider-banner-content p{color:rgba(219,234,254,.9);font-size:18px;margin-bottom:40px;line-height:1.7}
+.provider-banner-content h3{font-size:clamp(18px,3.5vw,28px);font-weight:900;margin-bottom:24px;line-height:1.2}
+.provider-banner-content p{color:rgba(219,234,254,.9);font-size:13px;margin-bottom:40px;line-height:1.7}
 .provider-banner-btns{display:flex;gap:16px;flex-wrap:wrap}
 .btn-provider-white{background:var(--white);color:var(--primary);padding:16px 32px;border-radius:12px;font-weight:900;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-size:15px;box-shadow:var(--shadow-lg)}
 .btn-provider-outline{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);backdrop-filter:blur(8px);color:#fff;padding:16px 32px;border-radius:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;font-size:15px}
@@ -656,7 +678,7 @@ input,select,textarea{font-family:'Inter',sans-serif}
 .mob-tog{display:none;position:fixed;bottom:20px;right:20px;z-index:300;width:48px;height:48px;border-radius:50%;background:var(--primary);color:#fff;border:none;box-shadow:var(--shadow-primary);cursor:pointer;align-items:center;justify-content:center;font-size:18px}
 .mob-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:199}
 @media(max-width:1024px){.dash-grid{grid-template-columns:1fr}.dash-left{grid-column:1}.dash-right{grid-column:1}.settings-grid{grid-template-columns:1fr}}
-@media(max-width:768px){.sidebar{transform:translateX(-100%)}.sidebar.mob-open{transform:translateX(0)}.sidebar.collapsed{transform:translateX(-100%)}.main-wrap{margin-left:0!important}.mob-tog{display:flex}.mob-ov.open{display:block}.page-content{padding:16px}.hero-inner{grid-template-columns:1fr}.hero-visual{display:none}.payment-grid{grid-template-columns:1fr}.how-grid{grid-template-columns:repeat(2,1fr)}.how-connector{display:none}.specialty-grid{grid-template-columns:repeat(3,1fr)}.hospitals-grid{grid-template-columns:1fr}.provider-banner-inner{grid-template-columns:1fr;padding:40px 24px}.footer-grid{grid-template-columns:1fr 1fr}.sr-sidebar{display:none}.search-results-wrap{flex-direction:column}.result-card-inner{flex-direction:column}.result-img-col{width:100%;height:200px;min-height:unset}.result-doc-img-col{width:100%;min-height:180px}.pub-nav{display:none}}
+@media(max-width:768px){.sidebar{transform:translateX(-100%);transition:transform .25s cubic-bezier(.4,0,.2,1)}.sidebar.mob-open{transform:translateX(0);box-shadow:4px 0 24px rgba(0,0,0,.18)}.sidebar.collapsed{transform:translateX(-100%)}.main-wrap{margin-left:0!important}.mob-tog{display:flex}.mob-ov.open{display:block}.page-content{padding:16px}.hero-inner{grid-template-columns:1fr}.hero-visual{display:none}.payment-grid{grid-template-columns:1fr}.how-grid{grid-template-columns:repeat(2,1fr)}.how-connector{display:none}.specialty-grid{grid-template-columns:repeat(3,1fr)}.hospitals-grid{grid-template-columns:1fr}.provider-banner-inner{grid-template-columns:1fr;padding:40px 24px}.footer-grid{grid-template-columns:1fr 1fr}.sr-sidebar{display:none}.search-results-wrap{flex-direction:column}.result-card-inner{flex-direction:column}.result-img-col{width:100%;height:200px;min-height:unset}.result-doc-img-col{width:100%;min-height:180px}.pub-nav{display:none}}
 @media(max-width:480px){.specialty-grid{grid-template-columns:repeat(2,1fr)}.footer-grid{grid-template-columns:1fr}.otp-digit{font-size:22px;height:54px}.split-layout{grid-template-columns:1fr}.split-left{display:none}}
 
 /* Utils */
@@ -849,9 +871,287 @@ input,select,textarea{font-family:'Inter',sans-serif}
 @media(max-width:768px){.split-layout{grid-template-columns:1fr}.split-left{display:none}.split-right{padding:32px 24px}.svc-grid{grid-template-columns:1fr}.call-wrap{flex-direction:column}.call-sidebar{width:100%}}
 
 
-
-.pub-logo {
-  display: flex;
-  align-items: center;
-  gap: 8px; /* Adjust spacing between logo and text */
+/* ══ MOBILE SIDEBAR — complete overhaul for patient portal ══ */
+/* Mobile fab toggle button */
+#mobSidebarToggle{
+  display:none;
+  position:fixed;bottom:20px;right:20px;z-index:400;
+  width:52px;height:52px;border-radius:50%;
+  background:var(--primary);color:#fff;border:none;
+  box-shadow:0 8px 24px rgba(25,120,229,.45);
+  cursor:pointer;align-items:center;justify-content:center;font-size:20px;
+  transition:transform .15s;
 }
+#mobSidebarToggle:active{transform:scale(.93)}
+
+/* Sidebar on mobile: off-canvas, slides in from left */
+@media(max-width:768px){
+  #mobSidebarToggle{display:flex}
+
+  .sidebar{
+    transform:translateX(-100%);
+    transition:transform .25s cubic-bezier(.4,0,.2,1);
+    top:0;bottom:0;height:100vh;
+    box-shadow:none;
+    z-index:300;
+  }
+  .sidebar.mob-open{
+    transform:translateX(0);
+    box-shadow:4px 0 24px rgba(0,0,0,.18);
+  }
+  /* Collapsed sidebar should also hide on mobile */
+  .sidebar.collapsed{ transform:translateX(-100%) }
+  .sidebar.collapsed.mob-open{ transform:translateX(0); width:var(--sidebar-w) }
+
+  /* Main content takes full width on mobile */
+  .main-wrap{ margin-left:0 !important }
+
+  /* Dashboard page content padding */
+  .page-content{ padding:16px !important }
+
+  /* Topbar compact on mobile */
+  .topbar{ padding:0 14px }
+
+  /* Overlay */
+  .mob-ov{
+    display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:299;
+    backdrop-filter:blur(2px);
+  }
+  .mob-ov.open{ display:block }
+
+  /* Nearby grid single column on mobile */
+  .nearby-grid{ grid-template-columns:1fr }
+
+  /* Settings grid single column */
+  .settings-grid{ grid-template-columns:1fr }
+
+  /* Hide pub-header on dashboard pages (when sidebar is present) */
+  .has-sidebar .pub-header{ display:none }
+}
+
+/* ══ SYSTEM-STYLE DASHBOARD IMPROVEMENTS ══ */
+/* Suppress the public website header when sidebar layout is active */
+.pub-header + * .pub-header,
+body:has(.sidebar) .pub-header{
+  display:none;
+}
+
+/* Ensure body doesn't show pub-header on dashboard */
+.main-wrap ~ .pub-header{ display:none }
+
+/* Make the overall page feel like an app */
+body:has(#sidebar){
+  background:var(--slate-50);
+}
+
+/* Dashboard tab content consistent padding */
+.page-content{
+  padding:28px 32px;
+  flex:1;
+}
+
+/* Cards in dashboard get consistent elevation */
+.card{
+  box-shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVE SYSTEM v3 — full mobile-first rebuild
+   Breakpoints: 1200 / 1024 / 768 / 480 / 360
+═══════════════════════════════════════════════════════════════ */
+
+/* ── Base overrides (applied at all sizes) ────────────────────── */
+.pub-header-inner { padding: 0 20px; }
+.pub-nav          { gap: 18px; }
+.hero-section     { padding: 44px 20px 72px; }
+.hero-desc        { max-width: 100%; }
+.hero-badge-card  { max-width: 210px; }
+.payment-section  { padding: 56px 20px; }
+.how-section      { padding: 64px 20px; }
+.specialty-section{ padding: 64px 20px; }
+.hospitals-section{ padding: 64px 20px; }
+
+/* ── 1200px: large tablet ────────────────────────────────────── */
+@media (max-width: 1200px) {
+  .pub-header-inner { padding: 0 18px; }
+  .hero-inner       { gap: 36px; }
+}
+
+/* ── 1024px: small laptop / large tablet ─────────────────────── */
+@media (max-width: 1024px) {
+  .pub-header-inner { height: 58px; padding: 0 16px; }
+  .pub-logo img     { height: 38px !important; }
+  .pub-logo-name    { font-size: 17px; }
+  .pub-nav          { gap: 14px; }
+  .pub-nav a        { font-size: 12.5px; }
+  .btn-get-started  { padding: 8px 16px; font-size: 12px; }
+  .hero-inner       { gap: 28px; }
+  .hero-badge-card  { display: none; }
+  .payment-grid     { grid-template-columns: 1fr 1fr; }
+  .how-grid         { grid-template-columns: repeat(2, 1fr); }
+  .how-connector    { display: none; }
+  .provider-banner-inner { grid-template-columns: 1fr; padding: 44px 28px; }
+}
+
+/* ── 768px: mobile ───────────────────────────────────────────── */
+@media (max-width: 768px) {
+
+
+
+  /* Ensure search fields don't have a minimum width that breaks the screen */
+  .hero-search-field {
+    min-width: 0 !important; 
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--slate-100);
+  }
+  
+  /* Hide the floating badges on small mobile screens to prevent overlap and sway */
+  .hero-badge-card, .pz-fl {
+    display: none !important;
+  }
+
+  /* Force the hero search to stay within screen bounds */
+  .hero-search {
+    width: 100% !important;
+    margin: 0 auto;
+    box-sizing: border-box;
+  }
+
+
+
+  
+  /* Header */
+  .pub-header-inner { height: 54px; padding: 0 14px; }
+  .pub-logo img     { height: 34px !important; }
+  .pub-logo-name    { font-size: 16px; }
+  .pub-nav          { display: none; flex-direction: column; gap: 0;
+                      position: fixed; top: 54px; left: 0; right: 0;
+                      background: #fff; border-bottom: 1px solid #e2e8f0;
+                      padding: 12px 16px; z-index: 98;
+                      box-shadow: 0 8px 24px rgba(0,0,0,.1); }
+  .pub-nav.mob-nav-open { display: flex; }
+  .pub-nav a, .pub-nav-dropdown { padding: 11px 0; border-bottom: 1px solid #f8fafc; width: 100%; }
+  .pub-nav-divider  { display: none; }
+  .pub-nav-dropdown-menu { position: static !important; display: block !important;
+                           box-shadow: none !important; border: 1px solid #f1f5f9 !important;
+                           margin: 6px 0 0; }
+  .pub-nav-dropdown-btn .fa-chevron-down { display: none; }
+  #navHamburger     { display: flex !important; align-items: center; justify-content: center; }
+  .btn-get-started  { padding: 7px 14px; font-size: 12px; }
+
+  /* Hero */
+  .hero-section     { padding: 28px 14px 48px; }
+  .hero-inner       { grid-template-columns: 1fr; gap: 20px; }
+  .hero-title       { font-size: clamp(20px, 6.5vw, 32px); margin-bottom: 12px; }
+  .hero-desc        { font-size: 13px; margin-bottom: 22px; }
+  .hero-visual      { display: none; }
+  .hero-badge       { font-size: 10px; margin-bottom: 12px; }
+  .hero-search      { flex-direction: column; border-radius: 14px; }
+  .hero-search-field{ border-right: none; border-bottom: 1px solid #f1f5f9; padding: 10px 12px; min-width: 100%; }
+  .hero-search-field:last-of-type { border-bottom: none; }
+  .hero-search-btn  { width: 100%; height: 42px; border-radius: 10px; margin-top: 2px; font-size: 15px; }
+
+  /* Sections */
+  .payment-section  { padding: 40px 14px; }
+  .payment-inner h3 { font-size: 18px; }
+  .payment-grid     { grid-template-columns: 1fr; gap: 12px; }
+  .payment-card     { padding: 20px; }
+  .payment-card-icon{ width: 44px; height: 44px; font-size: 22px; margin-bottom: 14px; }
+  .payment-card h4  { font-size: 14px; }
+  .payment-card p   { font-size: 12.5px; }
+
+  .how-section      { padding: 40px 14px; }
+  .how-section h3   { font-size: 18px; }
+  .how-grid         { grid-template-columns: 1fr 1fr; }
+  .how-step p       { font-size: 12px; }
+
+  .specialty-section{ padding: 40px 14px; }
+  .specialty-header h3 { font-size: 18px; }
+  .specialty-grid   { grid-template-columns: repeat(3, 1fr); }
+  .specialty-card i { font-size: 24px; }
+  .specialty-card span { font-size: 11.5px; }
+
+  .hospitals-section{ padding: 40px 14px; }
+  .hospitals-inner h3 { font-size: 18px; }
+  .hospitals-grid   { grid-template-columns: 1fr; }
+  .hospital-card-body h4 { font-size: 14px; }
+  .hospital-card-loc  { font-size: 11.5px; }
+
+  /* Provider banner */
+  .provider-banner-inner { grid-template-columns: 1fr; padding: 30px 16px; gap: 20px; }
+  .provider-banner-content h3 { font-size: 20px; }
+  .provider-banner-content p  { font-size: 13px; margin-bottom: 24px; }
+
+  /* Stats */
+  .stats-row        { grid-template-columns: 1fr 1fr !important; gap: 10px; }
+  .stat-card        { padding: 14px 12px; }
+
+  /* Auth cards */
+  .split-layout     { grid-template-columns: 1fr; border-radius: 16px; min-height: auto; }
+  .split-left       { display: none; }
+  .split-right      { padding: 28px 18px; }
+  .auth-card        { padding: 24px 18px; border-radius: 16px; max-width: 100%; }
+  .page-main        { padding: 24px 14px; }
+
+  /* OTP */
+  .otp-row          { gap: 7px; }
+  .otp-digit        { height: 50px; font-size: 22px; border-radius: 10px; }
+
+  /* Dashboard */
+  .page-content     { padding: 14px !important; }
+  .topbar           { padding: 0 12px; }
+  .dash-grid        { grid-template-columns: 1fr; }
+  .settings-grid    { grid-template-columns: 1fr; }
+
+  /* Footer */
+  .footer-grid      { grid-template-columns: 1fr 1fr; gap: 20px; }
+  .footer           { padding: 36px 16px; }
+
+  /* Sidebar off-canvas */
+  .sidebar          { transform: translateX(-100%); transition: transform .25s cubic-bezier(.4,0,.2,1); }
+  .sidebar.mob-open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,.18); }
+  .main-wrap        { margin-left: 0 !important; }
+  .mob-tog          { display: flex !important; }
+  .mob-ov.open      { display: block; }
+}
+
+/* ── 480px: small phones ─────────────────────────────────────── */
+@media (max-width: 480px) {
+  .pub-header-inner { height: 50px; padding: 0 12px; }
+  .pub-logo img     { height: 30px !important; }
+  .pub-logo-name    { font-size: 15px; }
+  .btn-get-started  { padding: 6px 12px; font-size: 11.5px; }
+
+  .hero-section     { padding: 22px 12px 40px; }
+  .hero-title       { font-size: clamp(19px, 7vw, 28px); }
+  .hero-desc        { font-size: 12.5px; }
+  .hero-badge       { font-size: 9.5px; padding: 4px 10px; }
+
+  .payment-inner h3 { font-size: 16px; }
+  .how-section h3   { font-size: 16px; }
+  .specialty-header h3 { font-size: 16px; }
+  .hospitals-inner h3  { font-size: 16px; }
+  .specialty-grid   { grid-template-columns: repeat(2, 1fr); }
+  .how-grid         { grid-template-columns: 1fr; }
+  .stats-row        { grid-template-columns: 1fr !important; }
+  .footer-grid      { grid-template-columns: 1fr; }
+
+  .otp-row          { gap: 5px; }
+  .otp-digit        { height: 46px; font-size: 20px; }
+  .auth-card        { padding: 20px 14px; }
+  .split-right      { padding: 24px 14px; }
+}
+
+/* ── 360px: very small ───────────────────────────────────────── */
+@media (max-width: 360px) {
+  .pub-header-inner { height: 48px; padding: 0 10px; }
+  .pub-logo img     { height: 28px !important; }
+  .pub-logo-name    { display: none; }
+  .hero-title       { font-size: 18px; }
+  .otp-digit        { height: 42px; font-size: 18px; }
+}
+
+/* ── Header class bridge: .pub-header is now .pz-hdr ─────────── */
+.pub-header { display: none !important; }
+.has-sidebar .pz-hdr { display: none !important; }
