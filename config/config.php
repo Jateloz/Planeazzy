@@ -12,11 +12,11 @@ define('DB_HOST',    'localhost');
 define('DB_PORT',    '3306');
 define('DB_NAME',    'u628600436_planeazzy');
 define('DB_USER',    'u628600436_henryodindo238');
-define('DB_PASS',    'Jatelo@20');              
+define('DB_PASS',    '0');              
 define('DB_CHARSET', 'utf8mb4');
 
 // ── Security ──────────────────────────────────────────────────────────────────
-define('APP_SECRET', 'kR4!mX2#vP8*zL5^qN7@xW0&hB4+sJ1=cG3_fD6)yH2[uI5]oP8{kL7}mN9|bV1/c');
+define('APP_SECRET', '');
 define('CSRF_TOKEN_LENGTH',   64);
 define('SESSION_LIFETIME',    3600);          // 1 hour
 define('MAX_LOGIN_ATTEMPTS',  5);
@@ -37,7 +37,7 @@ define('RATE_LIMIT_REQUESTS', 100);
 define('RATE_LIMIT_WINDOW',   60);
 
 // ── SendGrid (primary email) ──────────────────────────────────────────────────
-define('SENDGRID_API_KEY',    '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');  // ← paste your SendGrid API key
+define('SENDGRID_API_KEY',    '');  // ← paste your SendGrid API key
 define('SENDGRID_FROM_EMAIL', 'info@planeazzy.com');  // ← verified sender
 define('SENDGRID_FROM_NAME',  'Planeazzy');
 
