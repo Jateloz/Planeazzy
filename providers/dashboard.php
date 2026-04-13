@@ -51,9 +51,9 @@ $typeIcon   = $typeIcons[$ptype] ?? 'fa-hospital';
     <p>You have <strong><?= count($today) ?></strong> appointment<?= count($today) !== 1 ? 's' : '' ?> today and <strong><?= count($upcoming) ?></strong> upcoming.</p>
   </div>
   <div class="welcome-btns">
-    <a href="?tab=appointments" class="btn-join" style="background:<?= $typeColor ?>"><i class="fa-solid fa-calendar-check"></i> View Appointments</a>
+    <a href="?tab=appointments" class="btn-join" style="background:<?= $typeColor ?>"><i class="fa-solid fa-calendar-check"></i> <span data-en="View Appointments" data-sw="Ona Miadi">View Appointments</span></a>
     <?php if ($ptype !== 'ambulance'): ?>
-    <a href="/patients/telehealth.php" class="btn-reschedule" style="display:inline-flex;align-items:center;gap:6px"><i class="fa-solid fa-video"></i> Start Telehealth</a>
+    <a href="/patients/telehealth.php" class="btn-reschedule" style="display:inline-flex;align-items:center;gap:6px"><i class="fa-solid fa-video"></i> <span data-en="Start Telehealth" data-sw="Anza Telemedicine">Start Telehealth</span></a>
     <?php endif; ?>
   </div>
 </div>
@@ -63,8 +63,8 @@ $typeIcon   = $typeIcons[$ptype] ?? 'fa-hospital';
 <div style="background:rgba(217,119,6,.05);border:1.5px solid rgba(217,119,6,.2);border-radius:12px;padding:16px 20px;display:flex;align-items:center;gap:14px;margin-bottom:24px">
   <i class="fa-solid fa-clock" style="color:var(--yellow);font-size:22px;flex-shrink:0"></i>
   <div>
-    <div style="font-size:15px;font-weight:700;color:var(--slate-900)">Account Under Review</div>
-    <div style="font-size:14px;color:var(--slate-500)">Your profile is being verified. This usually takes 24–48 hours. You'll receive an email once approved.</div>
+    <div style="font-size:15px;font-weight:700;color:var(--slate-900)" data-en="Account Under Review" data-sw="Akaunti Inapitiwa">Account Under Review</div>
+    <div style="font-size:14px;color:var(--slate-500)" data-en="Your profile is being verified. This usually takes 24–48 hours." data-sw="Wasifu wako unakaguliwa. Hii kawaida huchukua masaa 24–48.">Your profile is being verified. This usually takes 24–48 hours.</div>
   </div>
 </div>
 <?php endif; ?>
@@ -93,7 +93,7 @@ $typeIcon   = $typeIcons[$ptype] ?? 'fa-hospital';
 <!-- Today's appointments + profile -->
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
   <div>
-    <div class="section-hdr"><h3>Today's Appointments</h3><a href="?tab=appointments">View all</a></div>
+    <div class="section-hdr"><h3><span data-en="Today's Appointments" data-sw="Miadi ya Leo">Today's Appointments</span><h3><a href="?tab=appointments">View all</a></div>
     <?php if (empty($today)): ?>
     <div style="background:var(--white);border-radius:12px;border:1px solid var(--slate-100);padding:36px 24px;text-align:center;box-shadow:var(--custom-shadow)">
       <i class="fa-regular fa-calendar" style="font-size:36px;color:var(--slate-200);display:block;margin-bottom:12px"></i>

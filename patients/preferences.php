@@ -10,11 +10,11 @@ $csrf = Security::csrfToken();
   <div style="width:100%;max-width:560px">
     <div class="auth-card slide-up">
       <div class="step-wrap">
-        <div class="step-row"><span class="step-badge"><i class="fa-solid fa-heart-pulse"></i> Choose Service</span><span class="step-pct">Step 3 of 3</span></div>
+        <div class="step-row"><span class="step-badge"><i class="fa-solid fa-heart-pulse"></i> <span data-en="Choose Service" data-sw="Chagua Huduma">Choose Service</span></span><span class="step-pct" data-en="Step 3 of 3" data-sw="Hatua 3 ya 3">Step 3 of 3</span></div>
         <div class="prog-track"><div class="prog-fill" style="width:90%"></div></div>
       </div>
-      <h2 style="font-size:22px;font-weight:900;color:var(--slate-900);margin-bottom:6px;letter-spacing:-.03em">What brings you to Planeazzy?</h2>
-      <p style="font-size:14px;color:var(--slate-500);margin-bottom:22px">Choose your primary healthcare need. You can change this anytime in Settings.</p>
+      <h2 style="font-size:22px;font-weight:900;color:var(--slate-900);margin-bottom:6px;letter-spacing:-.03em" data-en="What brings you to Planeazzy?" data-sw="Ni nini kinakukuleta kwa Planeazzy?">What brings you to Planeazzy?</h2>
+      <p style="font-size:14px;color:var(--slate-500);margin-bottom:22px" data-en="Choose your primary healthcare need. You can change this anytime in Settings." data-sw="Chagua hitaji lako kuu la afya. Unaweza kubadilisha hii wakati wowote katika Mipangilio.">Choose your primary healthcare need. You can change this anytime in Settings.</p>
       <div id="alertBox" class="alert hidden"><i class="fa-solid fa-circle-exclamation"></i><span id="alertMsg"></span></div>
       <div class="svc-grid" id="svcGrid">
         <?php

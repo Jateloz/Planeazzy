@@ -17,7 +17,7 @@ include dirname(__DIR__) . '/includes/header.php';
       <div class="call-doc-lbl"><span class="call-live"></span> <i class="fa-solid fa-user-doctor" style="color:#5eead4;font-size:14px"></i>&nbsp; Dr. Sarah Jenkins · Cardiologist</div>
       <div class="call-self">
         <div class="call-self-bg"></div>
-        <div class="call-self-lbl">You</div>
+        <div class="call-self-lbl" data-en="You" data-sw="Wewe">You</div>
       </div>
       <div class="call-dur" id="callTimer">00:00</div>
     </div>

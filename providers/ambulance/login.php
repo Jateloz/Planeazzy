@@ -2,50 +2,52 @@
 require_once dirname(__DIR__, 2). '/config/config.php';
 require_once dirname(__DIR__, 2). '/services/Security.php';
 Security::startSession();
-if (!empty($_SESSION['provider_id'])) { header('Location: /providers/dashboard.php'); exit; }
-$noSidebar = true; $portalType = 'ambulance'; $pageTitle = 'Ambulance Portal — Sign In';
+if(!empty($_SESSION['provider_id'])){header('Location: /providers/dashboard.php');exit;}
+$noSidebar=true; $pageTitle='Ambulance Portal — Sign In';
 include dirname(__DIR__, 2). '/includes/header.php';
-$csrf = Security::csrfToken();
+$csrf=Security::csrfToken();
 ?>
-<main style="flex:1;background:var(--navy);display:flex;align-items:center;justify-content:center;padding:40px 20px;min-height:calc(100vh - 64px)">
-  <div style="width:100%;max-width:880px;display:grid;grid-template-columns:1fr 1fr;border-radius:24px;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,.5)">
-    <div style="background:linear-gradient(160deg,#1a0505 0%,#7f1d1d 50%,#dc2626 100%);padding:48px;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between">
-      <div style="position:absolute;inset:0;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52'%3E%3Cpolygon points='30,2 58,17 58,35 30,50 2,35 2,17' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='1'/%3E%3C/svg%3E\");background-size:60px 52px"></div>
-      <div style="position:relative;z-index:1"><span style="display:inline-flex;align-items:center;gap:6px;background:rgba(239,68,68,.25);border:1px solid rgba(239,68,68,.4);padding:5px 13px;border-radius:99px;font-size:11px;font-weight:700;color:#fca5a5;text-transform:uppercase;letter-spacing:.5px"><span class="material-symbols-outlined" style="font-size:13px">emergency</span>Emergency Services</span></div>
-      <div style="position:relative;z-index:1">
-        <div style="font-size:48px;margin-bottom:14px">🚑</div>
-        <h2 style="font-family:var(--ff-head);font-size:clamp(20px,2.5vw,26px);font-weight:900;color:#fff;letter-spacing:-0.04em;margin-bottom:9px;line-height:1.2">24/7 Emergency Dispatch Portal</h2>
-        <p style="font-size:13px;color:rgba(255,255,255,.6);line-height:1.7;margin-bottom:20px">Receive SOS alerts, dispatch units, and track fleets in real-time.</p>
-        <div style="display:flex;gap:22px">
-          <div><div style="font-family:var(--ff-head);font-size:24px;font-weight:900;color:#fca5a5">&lt;4min</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Avg. response</div></div>
-          <div><div style="font-family:var(--ff-head);font-size:24px;font-weight:900;color:#fca5a5">24/7</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Always on</div></div>
-          <div><div style="font-family:var(--ff-head);font-size:24px;font-weight:900;color:#fca5a5">GPS</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Live tracking</div></div>
+<main style="flex:1;display:flex;align-items:center;justify-content:center;padding:48px 20px;background:var(--bg-light)">
+  <div class="split-layout slide-up">
+    <div class="split-left" style="background:linear-gradient(160deg,#1a0505,#7f1d1d,#dc2626)">
+      <div class="split-left-hex"></div>
+      <div class="split-left-content">
+        <span class="portal-badge pb-red" style="margin-bottom:16px"><i class="fa-solid fa-truck-medical"></i> Ambulance Portal</span>
+        <h2>Manage Your Practice with Planeazzy</h2>
+        <p>Streamline appointments, connect with patients, and deliver better care from one dashboard.</p>
+        <div class="split-left-features">
+          <div class="split-feature"><i class="fa-solid fa-check-circle"></i> Real-time appointment scheduling</div>
+          <div class="split-feature"><i class="fa-solid fa-check-circle"></i> Patient health record access</div>
+          <div class="split-feature"><i class="fa-solid fa-check-circle"></i> Telehealth video consultations</div>
+          <div class="split-feature"><i class="fa-solid fa-check-circle"></i> Location-based patient matching</div>
         </div>
       </div>
     </div>
-    <div style="background:#fff;padding:48px 44px;display:flex;flex-direction:column;justify-content:center">
-      <div style="display:inline-flex;align-items:center;gap:6px;background:var(--red-l);color:var(--red);padding:4px 12px;border-radius:99px;font-size:11px;font-weight:700;border:1px solid var(--red-b);margin-bottom:16px;text-transform:uppercase;letter-spacing:.4px"><span class="material-symbols-outlined" style="font-size:13px">ambulance</span>Ambulance Portal</div>
-      <h1 style="font-family:var(--ff-head);font-size:24px;font-weight:900;color:var(--navy);letter-spacing:-0.04em;margin-bottom:6px">Dispatcher Sign In</h1>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:22px">Access the emergency coordination dashboard.</p>
-      <div id="alertBox" class="alert hidden"><span class="material-symbols-outlined">error</span><span id="alertMsg"></span></div>
-      <input type="hidden" id="csrf" value="<?= htmlspecialchars($csrf) ?>">
-      <div class="form-group">
-        <label class="form-label">Dispatch Email</label>
-        <div class="input-wrap"><span class="input-ico"><span class="material-symbols-outlined">mail</span></span>
-        <input type="email" id="email" class="form-input has-ico" placeholder="dispatch@service.co.ke" autofocus></div>
+    <div class="split-right">
+      <div style="max-width:380px;width:100%;margin:0 auto">
+        <span class="portal-badge pb-red"><i class="fa-solid fa-truck-medical"></i> Ambulance Portal</span>
+        <h2 style="font-size:24px;font-weight:900;color:var(--slate-900);margin-bottom:6px;letter-spacing:-.03em" data-en="Welcome back" data-sw="Karibu tena">Welcome back</h2>
+        <p style="font-size:14px;color:var(--slate-500);margin-bottom:24px" data-en="Sign in to your provider dashboard." data-sw="Ingia kwenye dashibodi yako ya mtoa huduma.">Sign in to your provider dashboard.</p>
+        <div id="alertBox" class="alert hidden"><i class="fa-solid fa-circle-exclamation"></i><span id="alertMsg"></span></div>
+        <input type="hidden" id="csrf" value="<?=htmlspecialchars($csrf)?>">
+        <div class="form-group"><label class="form-label"><span data-en="Email Address" data-sw="Barua Pepe">Email Address</span></label>
+          <div class="input-wrap"><i class="fa-solid fa-envelope input-ico"></i><input type="email" id="email" class="form-input has-ico" data-en-placeholder="provider@example.com" data-sw-placeholder="mtoa@mfano.com" placeholder="provider@example.com" autofocus></div>
+        </div>
+        <div class="form-group" style="margin-bottom:24px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <label class="form-label" style="margin-bottom:0"><span data-en="Password" data-sw="Nenosiri">Password</span></label>
+            <a href="#" style="font-size:12px;font-weight:600;color:#dc2626"><span data-en="Forgot password?" data-sw="Umesahau nenosiri?">Forgot password?</span></a>
+          </div>
+          <div class="input-wrap"><i class="fa-solid fa-lock input-ico"></i>
+            <input type="password" id="password" class="form-input has-ico" placeholder="••••••••">
+            <button type="button" class="eye-btn" id="ep1" onclick="togglePwd('password','ep1')"><i class="fa-solid fa-eye"></i></button>
+          </div>
+        </div>
+        <button id="submitBtn" class="btn btn-primary btn-full btn-lg" style="background:#dc2626" onclick="doProviderLogin()"><i class="fa-solid fa-arrow-right-to-bracket"></i> Sign In to Ambulance Portal</button>
+        <div class="divider"><span><span data-en="New to Planeazzy?" data-sw="Mpya kwa Planeazzy?">New to Planeazzy?</span></div>
+        <a href="/providers/ambulance/register.php" class="btn btn-ghost btn-full"><i class="fa-solid fa-user-plus"></i> Register as Ambulance Portal</a>
+        <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--slate-400)"><a href="/patients/login.php" style="color:var(--slate-500)">← Patient login</a></p>
       </div>
-      <div class="form-group" style="margin-bottom:22px">
-        <label class="form-label">Password</label>
-        <div class="input-wrap"><span class="input-ico"><span class="material-symbols-outlined">lock</span></span>
-        <input type="password" id="password" class="form-input has-ico" placeholder="••••••••">
-        <button type="button" class="eye-btn" id="eye1" onclick="togglePwd('password','eye1')"><span class="material-symbols-outlined">visibility</span></button></div>
-      </div>
-      <button id="submitBtn" class="btn btn-full btn-lg" style="background:var(--red);color:#fff" onclick="doProviderLogin()">
-        <span class="material-symbols-outlined">emergency</span> Sign In — Emergency Portal
-      </button>
-      <div class="divider" style="margin:20px 0"><span>Register new service?</span></div>
-      <a href="/providers/ambulance/register.php" class="btn btn-ghost btn-full">Register Ambulance Service</a>
-      <p style="text-align:center;margin-top:14px;font-size:13px;color:var(--muted)"><a href="/patients/login.php" style="color:var(--muted)">&larr; Patient login</a></p>
     </div>
   </div>
 </main>
@@ -54,10 +56,9 @@ $csrf = Security::csrfToken();
 async function doProviderLogin(){
   const r=await post('/api/provider/login.php',{csrf_token:document.getElementById('csrf').value,email:document.getElementById('email').value.trim(),password:document.getElementById('password').value},'submitBtn','alertBox');
   if(!r)return;
-  if(r.success){setTimeout(()=>location.href='/providers/dashboard.php',800);}
-  else if(r.needs_verification){sessionStorage.setItem('pz_prov_id',r.provider_id);setTimeout(()=>location.href='/providers/verify.php',1400);}
-  document.getElementById('alertBox').className='alert alert-'+(r.success?'ok':(r.needs_verification?'info':'err'));
-  document.getElementById('alertMsg').textContent=r.success?'Redirecting…':r.message||'Login failed.';
-  document.getElementById('alertBox').classList.remove('hidden');
+  if(r.success){UI.alert('ok','Login successful! Redirecting…','alertBox');setTimeout(()=>location.href='/providers/dashboard.php',800);}
+  else if(r.needs_verification){sessionStorage.setItem('pz_prov_id',r.provider_id);UI.alert('info',r.message,'alertBox');setTimeout(()=>location.href='/providers/verify.php',1400);}
+  else UI.alert('err',r.message||'Login failed.','alertBox');
 }
+document.addEventListener('keydown',e=>{if(e.key==='Enter')doProviderLogin();});
 </script>

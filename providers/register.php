@@ -6,30 +6,66 @@ if (!empty($_SESSION['provider_id'])) { header('Location: /providers/dashboard.p
 $noSidebar = true; $pageTitle = 'Register Your Practice';
 include dirname(__DIR__) . '/includes/header.php';
 ?>
-<main style="flex:1;display:flex;align-items:center;justify-content:center;padding:64px 20px;background:var(--bg-light)">
-  <div style="width:100%;max-width:700px">
-    <div style="text-align:center;margin-bottom:40px">
-      <span style="display:inline-block;padding:4px 16px;border-radius:9999px;background:var(--primary-10);color:var(--primary);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px">Join Planeazzy's Provider Network</span>
-      <h2 style="font-size:clamp(28px,4vw,40px);font-weight:900;color:var(--slate-900);letter-spacing:-.03em;margin-bottom:12px">Choose Your Portal</h2>
-      <p style="font-size:16px;color:var(--slate-500)">Select the type of healthcare practice you want to register.</p>
+<style>
+.auth-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:64px 20px;background:var(--slate-50)}
+.reg-card{background:#fff;border-radius:20px;padding:48px 40px;box-shadow:0 12px 40px rgba(0,0,0,.08);width:100%;max-width:720px}
+.ptype-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:24px}
+.ptype-option{display:block;background:#fff;border:2px solid var(--slate-200);border-radius:18px;padding:28px 20px;text-decoration:none;text-align:center;transition:all .15s;box-shadow:var(--shadow-sm)}
+.ptype-option:hover{border-color:var(--primary);box-shadow:0 8px 24px rgba(25,120,229,.1);transform:translateY(-2px)}
+.ptype-option-icon{width:60px;height:60px;border-radius:15px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:26px}
+@media(max-width:640px){.ptype-grid{grid-template-columns:1fr}.reg-card{padding:32px 20px}}
+</style>
+<main class="auth-wrap">
+  <div class="reg-card">
+    <div style="text-align:center;margin-bottom:8px">
+      <span style="display:inline-block;padding:4px 16px;border-radius:9999px;background:var(--primary-10);color:var(--primary);font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px"
+            data-en="Join Planeazzy's Provider Network" data-sw="Jiunge na Mtandao wa Watoa Huduma wa Planeazzy">Join Planeazzy's Provider Network</span>
+      <h2 style="font-size:clamp(1.5rem,4vw,2rem);font-weight:900;color:var(--slate-900);letter-spacing:-.03em;margin-bottom:10px"
+          data-en="Choose Your Portal" data-sw="Chagua Lango Lako">Choose Your Portal</h2>
+      <p style="font-size:1rem;color:var(--slate-500)"
+         data-en="Select the type of healthcare practice you want to register."
+         data-sw="Chagua aina ya mazoezi ya afya unayotaka kusajili.">
+        Select the type of healthcare practice you want to register.
+      </p>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px">
+
+    <div class="ptype-grid">
       <?php foreach([
-        ['doctor',  'fa-stethoscope', 'var(--teal)',  'rgba(13,148,136,.1)','rgba(13,148,136,.2)','Doctor / Specialist', 'Individual practitioners, specialists and consultants.', '/providers/doctor/register.php'],
-        ['clinic',  'fa-house-medical','var(--green)','rgba(5,150,105,.1)', 'rgba(5,150,105,.2)', 'Clinic / Hospital',   'Outpatient clinics, hospitals and diagnostic centers.', '/providers/clinic/register.php'],
-        ['ambulance','fa-truck-medical','var(--red)',  'rgba(220,38,38,.1)', 'rgba(220,38,38,.2)', 'Ambulance Service',   'Emergency vehicle operators and dispatch services.',   '/providers/ambulance/register.php'],
-      ] as [$k,$ic,$col,$bg,$bdr,$t,$d,$link]): ?>
-      <a href="<?= $link ?>" style="display:block;background:var(--white);border:2px solid var(--slate-200);border-radius:20px;padding:32px 24px;text-decoration:none;text-align:center;transition:border-color .15s,box-shadow .15s;box-shadow:var(--shadow-sm)">
-        <div style="width:64px;height:64px;border-radius:16px;background:<?= $bg ?>;color:<?= $col ?>;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:28px;border:1px solid <?= $bdr ?>">
-          <i class="fa-solid <?= $ic ?>"></i>
+        ['doctor',  'fa-stethoscope', 'var(--teal)',  'rgba(13,148,136,.1)', 'rgba(13,148,136,.2)',
+         'Doctor / Specialist',  'Daktari / Mtaalamu',
+         'Individual practitioners, specialists and consultants.',
+         'Madaktari binafsi, wataalamu na washauri.',
+         '/providers/doctor/register.php', 'Register as Doctor','Jisajili kama Daktari'],
+        ['clinic',  'fa-house-medical','var(--green)','rgba(5,150,105,.1)',  'rgba(5,150,105,.2)',
+         'Clinic / Hospital',   'Kliniki / Hospitali',
+         'Outpatient clinics, hospitals and diagnostic centers.',
+         'Kliniki za wagonjwa wa nje, hospitali na vituo vya uchunguzi.',
+         '/providers/clinic/register.php', 'Register Clinic','Jisajili Kliniki'],
+        ['ambulance','fa-truck-medical','var(--red)',  'rgba(220,38,38,.1)',  'rgba(220,38,38,.2)',
+         'Ambulance Service',   'Huduma ya Ambulensi',
+         'Emergency vehicle operators and dispatch services.',
+         'Waendeshaji wa magari ya dharura na huduma za kutuma.',
+         '/providers/ambulance/register.php','Register Service','Jisajili Huduma'],
+      ] as [$k,$ic,$col,$bg,$bdr,$en,$sw,$desc,$descSw,$link,$cta,$ctaSw]): ?>
+      <a href="<?=$link?>" class="ptype-option">
+        <div class="ptype-option-icon" style="background:<?=$bg?>;color:<?=$col?>;border:1px solid <?=$bdr?>">
+          <i class="fa-solid <?=$ic?>"></i>
         </div>
-        <h3 style="font-size:17px;font-weight:700;color:var(--slate-900);margin-bottom:8px"><?= $t ?></h3>
-        <p style="font-size:13px;color:var(--slate-500);line-height:1.6;margin-bottom:18px"><?= $d ?></p>
-        <span style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:<?= $col ?>">Register <i class="fa-solid fa-arrow-right" style="font-size:11px"></i></span>
+        <h3 style="font-size:1rem;font-weight:700;color:var(--slate-900);margin-bottom:8px"
+            data-en="<?=htmlspecialchars($en)?>" data-sw="<?=htmlspecialchars($sw)?>"><?=$en?></h3>
+        <p style="font-size:.8125rem;color:var(--slate-500);line-height:1.6;margin-bottom:16px"
+           data-en="<?=htmlspecialchars($desc)?>" data-sw="<?=htmlspecialchars($descSw)?>"><?=$desc?></p>
+        <span style="display:inline-flex;align-items:center;gap:5px;font-size:.8125rem;font-weight:700;color:<?=$col?>"
+              data-en="<?=htmlspecialchars($cta)?> →" data-sw="<?=htmlspecialchars($ctaSw)?> →"><?=$cta?> →</span>
       </a>
       <?php endforeach; ?>
     </div>
-    <p style="text-align:center;margin-top:28px;font-size:14px;color:var(--slate-400)">Already registered? <a href="/providers/login.php" style="color:var(--primary);font-weight:600">Sign in here</a></p>
+
+    <p style="text-align:center;margin-top:24px;font-size:.875rem;color:var(--slate-400)">
+      <span data-en="Already registered?" data-sw="Umesajiliwa tayari?">Already registered?</span>
+      <a href="/providers/login.php" style="color:var(--primary);font-weight:600"
+         data-en="Sign in here →" data-sw="Ingia hapa →">Sign in here →</a>
+    </p>
   </div>
 </main>
 <?php include dirname(__DIR__) . '/includes/footer.php'; ?>

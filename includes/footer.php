@@ -7,8 +7,9 @@ $csrf = Security::csrfToken();
 </div><!-- /.sidebar layout flex -->
 
 <!-- Mobile sidebar toggle button -->
-<button onclick="toggleSidebar()" id="mobSidebarToggle"
-  style="display:none;position:fixed;bottom:20px;right:20px;z-index:300;width:48px;height:48px;border-radius:50%;background:var(--primary);color:#fff;border:none;box-shadow:0 10px 15px -3px rgba(25,120,229,.4);cursor:pointer;align-items:center;justify-content:center;font-size:18px">
+<!-- Mobile sidebar toggle FAB -->
+<button onclick="Sidebar.openMob()" id="mobSidebarToggle"
+  style="display:none;position:fixed;bottom:22px;right:22px;z-index:400;width:52px;height:52px;border-radius:50%;background:var(--primary);color:#fff;border:none;box-shadow:0 8px 24px rgba(25,120,229,.45);cursor:pointer;align-items:center;justify-content:center;font-size:20px;transition:transform .15s">
   <i class="fa-solid fa-bars"></i>
 </button>
 
@@ -67,11 +68,9 @@ $csrf = Security::csrfToken();
   <div class="pub-footer-inner">
     <div class="footer-grid">
       <div>
-        <div class="footer-logo">
-          <div class="footer-logo-icon">
-           <img src="images\plan platform logo.png" alt="Planeazzy Logo" width="22" height="22" style="display: block;">
-          </div>
-          <span class="footer-logo-name">Planeazzy</span>
+        <div class="footer-logo" style="display:flex;align-items:center;gap:10px">
+          <img src="/assets/images/favicon.png" alt="Planeazzy icon"
+               style="width:90px;height:50px;border-radius:9px;object-fit:contain;background:transparent">
         </div>
         <p class="footer-desc">Connecting patients with the best healthcare providers in Kenya through technology and transparency.</p>
         <div class="footer-socials">
@@ -88,7 +87,7 @@ $csrf = Security::csrfToken();
       <p class="footer-copy">© 2025 Planeazzy Ltd. All rights reserved. Kenya's #1 Healthcare Booking Platform.</p>
       <div class="footer-contacts">
         <span class="footer-contact"><i class="fa-solid fa-phone"></i> +254 700 000 000</span>
-        <span class="footer-contact"><i class="fa-solid fa-envelope"></i> hello@planeazzy.co.ke</span>
+        <span class="footer-contact"><i class="fa-solid fa-envelope"></i> info@planeazzy.com</span>
       </div>
     </div>
   </div>
