@@ -4,7 +4,7 @@
    Full sidebar, modals, forms, AJAX, charts, real-time updates
 ================================================================ */
 
-/* ── SIDEBAR ── */
+/*  SIDEBAR  */
 const HSidebar = (() => {
   let sb, main;
   function init() {
@@ -47,7 +47,7 @@ const HSidebar = (() => {
 window.toggleHSidebar = () => HSidebar.openMob();
 window.closeHSidebar  = () => HSidebar.closeMob();
 
-/* ── MODALS ── */
+/*  MODALS  */
 function hOpenModal(id) {
   const m = document.getElementById(id);
   if (!m) return;
@@ -63,7 +63,7 @@ function hCloseModal(id) {
 window.hOpenModal  = hOpenModal;
 window.hCloseModal = hCloseModal;
 
-/* ── ALERTS ── */
+/*  ALERTS  */
 const HUI = {
   alert(type, msg, id = 'hAlertBox') {
     const box = document.getElementById(id);
@@ -85,7 +85,7 @@ const HUI = {
   }
 };
 
-/* ── FETCH ── */
+/*  FETCH  */
 async function hPost(url, data, btnId, alertId) {
   HUI.hide(alertId);
   HUI.loading(btnId, true);
@@ -113,7 +113,7 @@ async function hPost(url, data, btnId, alertId) {
   }
 }
 
-/* ── PASSWORD STRENGTH ── */
+/*  PASSWORD STRENGTH  */
 const HPwd = (() => {
   const lvls = [
     { l: 'Too weak', c: '#dc2626', w: '20%' },
@@ -139,7 +139,7 @@ const HPwd = (() => {
   return { init: (iId, fId, tId) => { const el = document.getElementById(iId); if (el) el.addEventListener('input', () => update(el.value, fId, tId)); } };
 })();
 
-/* ── TOGGLE PASSWORD ── */
+/*  TOGGLE PASSWORD  */
 function hTogglePwd(inp, btn) {
   const el = document.getElementById(inp); if (!el) return;
   const b = document.getElementById(btn);
@@ -148,7 +148,7 @@ function hTogglePwd(inp, btn) {
 }
 window.hTogglePwd = hTogglePwd;
 
-/* ── OTP ── */
+/*  OTP  */
 const HOTP = (() => {
   function init(sel) {
     const grid = document.querySelector(sel || '.h-otp-row'); if (!grid) return;
@@ -180,7 +180,7 @@ const HOTP = (() => {
   return { init, value };
 })();
 
-/* ── MINI CHARTS ── */
+/*  MINI CHARTS  */
 function drawSparkline(canvasId, data, color = '#1978e5') {
   const canvas = document.getElementById(canvasId);
   if (!canvas || !canvas.getContext) return;
@@ -201,7 +201,7 @@ function drawSparkline(canvasId, data, color = '#1978e5') {
   ctx.fillStyle = color + '22'; ctx.fill();
 }
 
-/* ── STAT COUNTER ANIMATION ── */
+/*  STAT COUNTER ANIMATION  */
 function animHCounters() {
   document.querySelectorAll('[data-hcount]').forEach(el => {
     const target = parseInt(el.dataset.hcount), sfx = el.dataset.suffix || '';
@@ -214,16 +214,16 @@ function animHCounters() {
   });
 }
 
-/* ── APPOINTMENT ACTIONS ── */
+/*  APPOINTMENT ACTIONS  */
 async function hUpdateAppt(id, status) {
   const csrf = document.getElementById('hCsrf')?.value || '';
-  const r = await hPost('/api/provider/update-appointment.php', { appointment_id: id, status, csrf_token: csrf }, null, null);
+  const r = await hPost('/api/hospital/update-appointment.php', { appointment_id: id, status, csrf_token: csrf }, null, null);
   if (r?.success) { location.reload(); }
   else alert(r?.message || 'Action failed.');
 }
 window.hUpdateAppt = hUpdateAppt;
 
-/* ── TABLE SEARCH FILTER ── */
+/*  TABLE SEARCH FILTER  */
 function hTableSearch(inputId, tableId) {
   const inp = document.getElementById(inputId);
   const tbl = document.getElementById(tableId);
@@ -236,7 +236,7 @@ function hTableSearch(inputId, tableId) {
   });
 }
 
-/* ── BOOKING HOSPITAL ── */
+/*  BOOKING HOSPITAL  */
 async function hBookAppt() {
   const csrf = document.getElementById('hCsrf')?.value || '';
   const date = document.getElementById('hBookDate')?.value;
@@ -258,7 +258,7 @@ async function hBookAppt() {
 }
 window.hBookAppt = hBookAppt;
 
-/* ── HOSPITAL PROFILE SAVE ── */
+/*  HOSPITAL PROFILE SAVE  */
 async function hSaveProfile() {
   const csrf = document.getElementById('hCsrf')?.value || '';
   const data = {
@@ -269,13 +269,13 @@ async function hSaveProfile() {
     website: document.getElementById('hProfWeb')?.value?.trim(),
     description: document.getElementById('hProfDesc')?.value?.trim(),
   };
-  const r = await hPost('/api/provider/update-profile.php', data, 'hProfBtn', 'hProfAlert');
+  const r = await hPost('/api/hospital/update-profile.php', data, 'hProfBtn', 'hProfAlert');
   if (r?.success) HUI.alert('ok', 'Profile updated successfully.', 'hProfAlert');
   else HUI.alert('err', r?.message || 'Update failed.', 'hProfAlert');
 }
 window.hSaveProfile = hSaveProfile;
 
-/* ── AVAILABILITY SAVE ── */
+/*  AVAILABILITY SAVE  */
 async function hSaveAvail() {
   const csrf = document.getElementById('hCsrf')?.value || '';
   const slots = [];
@@ -287,13 +287,13 @@ async function hSaveAvail() {
     const closed = row.querySelector('.h-day-closed')?.checked;
     if (!closed && st && en) slots.push({ day, start: st, end: en, mode });
   });
-  const r = await hPost('/api/provider/set-availability.php', { slots, csrf_token: csrf }, 'hAvailBtn', 'hAvailAlert');
+  const r = await hPost('/api/hospital/set-availability.php', { slots, csrf_token: csrf }, 'hAvailBtn', 'hAvailAlert');
   if (r?.success) HUI.alert('ok', 'Availability saved.', 'hAvailAlert');
   else HUI.alert('err', r?.message || 'Save failed.', 'hAvailAlert');
 }
 window.hSaveAvail = hSaveAvail;
 
-/* ── NOTIFICATIONS MARK READ ── */
+/*  NOTIFICATIONS MARK READ  */
 async function hMarkRead(id) {
   document.getElementById('hn-' + id)?.classList.remove('unread');
   document.getElementById('hn-' + id)?.querySelector('.h-notif-dot')?.remove();
@@ -303,7 +303,7 @@ async function hMarkRead(id) {
 }
 window.hMarkRead = hMarkRead;
 
-/* ── INIT ── */
+/*  INIT  */
 document.addEventListener('DOMContentLoaded', () => {
   // Language system — app.js provides the Lang global
   if (typeof Lang !== 'undefined') {

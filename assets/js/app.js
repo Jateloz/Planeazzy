@@ -1,12 +1,12 @@
 'use strict';
 
-/* ─────────────────────────────────────────────────────────────
+/* 
    PLANEAZZY  app.js  v6
    Handles: Sidebar · Language (EN/SW, ALL pages) · Modals ·
             OTP · Password strength · Fetch · Animations · Geo
-   ─────────────────────────────────────────────────────────────*/
+   */
 
-/* ── SIDEBAR ─────────────────────────────────────── */
+/*  SIDEBAR  */
 const Sidebar = (() => {
   let sb, mw;
   function init() {
@@ -48,7 +48,7 @@ const Sidebar = (() => {
 window.toggleSidebar = () => Sidebar.openMob();
 window.closeSidebar  = () => Sidebar.closeMob();
 
-/* ── MODALS ──────────────────────────────────────── */
+/*  MODALS  */
 function openModal(id) {
   const m = document.getElementById(id); if (!m) return;
   m.classList.contains('modal-overlay') ? m.classList.add('open') : (m.style.display = 'flex');
@@ -62,7 +62,7 @@ function closeModal(id) {
 window.openModal  = openModal;
 window.closeModal = closeModal;
 
-/* ═══════════════════════════════════════════════════
+/* 
    LANGUAGE SYSTEM — EN / SW
    Works on EVERY page that uses app.js.
    Strategy:
@@ -74,7 +74,7 @@ window.closeModal = closeModal;
    Lang is persisted in localStorage('pz_lang').
    On every page load Lang.init() re-applies the stored lang.
    The toggle button (#langToggle) calls Lang.toggle().
-═══════════════════════════════════════════════════ */
+ */
 const Lang = (() => {
   let cur = localStorage.getItem('pz_lang') || 'en';
 
@@ -83,7 +83,7 @@ const Lang = (() => {
     localStorage.setItem('pz_lang', lang);
     document.documentElement.lang = lang === 'sw' ? 'sw' : 'en';
 
-    /* 1 ── text / HTML content */
+    /* 1  text / HTML content */
     document.querySelectorAll('[data-en]').forEach(el => {
       const val = el.getAttribute('data-' + lang);
       if (val === null) return;
@@ -97,31 +97,31 @@ const Lang = (() => {
       }
     });
 
-    /* 2 ── placeholder */
+    /* 2  placeholder */
     document.querySelectorAll('[data-en-placeholder]').forEach(el => {
       const val = el.getAttribute('data-' + lang + '-placeholder');
       if (val !== null) el.placeholder = val;
     });
 
-    /* 3 ── aria-label */
+    /* 3  aria-label */
     document.querySelectorAll('[data-en-label]').forEach(el => {
       const val = el.getAttribute('data-' + lang + '-label');
       if (val !== null) el.setAttribute('aria-label', val);
     });
 
-    /* 4 ── title attribute */
+    /* 4  title attribute */
     document.querySelectorAll('[data-en-title]').forEach(el => {
       const val = el.getAttribute('data-' + lang + '-title');
       if (val !== null) el.title = val;
     });
 
-    /* 5 ── <select> options with data-en-value / data-sw-value */
+    /* 5  <select> options with data-en-value / data-sw-value */
     document.querySelectorAll('option[data-en-value]').forEach(opt => {
       const val = opt.getAttribute('data-' + lang + '-value');
       if (val !== null) opt.text = val;
     });
 
-    /* 6 ── hero <select> #sType (special case for homepage) */
+    /* 6  hero <select> #sType (special case for homepage) */
     const sType = document.getElementById('sType');
     if (sType) {
       const opts = lang === 'sw'
@@ -130,16 +130,16 @@ const Lang = (() => {
       [...sType.options].forEach((o, i) => { if (opts[i]) o.text = opts[i]; });
     }
 
-    /* 7 ── lang button label */
+    /* 7  lang button label */
     const lb = document.getElementById('langLabel');
     if (lb) lb.textContent = lang === 'en' ? 'SW' : 'EN';
 
-    /* 8 ── lang button aria-label */
+    /* 8  lang button aria-label */
     const btn = document.getElementById('langToggle');
     if (btn) btn.setAttribute('aria-label',
       lang === 'en' ? 'Switch to Swahili' : 'Badili hadi Kiingereza');
 
-    /* 9 ── dispatch custom event so page-specific JS can react */
+    /* 9  dispatch custom event so page-specific JS can react */
     document.dispatchEvent(new CustomEvent('langchange', { detail: { lang } }));
   }
 
@@ -151,7 +151,7 @@ const Lang = (() => {
   };
 })();
 
-/* ── OTP grid ────────────────────────────────────── */
+/*  OTP grid  */
 const OTP = (() => {
   function init(sel) {
     const grid = document.querySelector(sel || '#otpGrid'); if (!grid) return;
@@ -184,7 +184,7 @@ const OTP = (() => {
   return { init, value };
 })();
 
-/* ── PASSWORD STRENGTH ───────────────────────────── */
+/*  PASSWORD STRENGTH  */
 const PwdStrength = (() => {
   const lvls = [
     {lbl:'Too weak',col:'#dc2626',w:'20%'},{lbl:'Weak',col:'#ea580c',w:'40%'},
@@ -211,7 +211,7 @@ const PwdStrength = (() => {
 })();
 window.PwdStrength = PwdStrength;
 
-/* ── ALERTS ──────────────────────────────────────── */
+/*  ALERTS  */
 const UI = (() => {
   const icons={ok:'fa-circle-check',err:'fa-circle-exclamation',warn:'fa-triangle-exclamation',info:'fa-circle-info'};
   function alert(type,msg,boxId='alertBox') {
@@ -233,7 +233,7 @@ const UI = (() => {
 })();
 window.UI = UI;
 
-/* ── FETCH HELPER ────────────────────────────────── */
+/*  FETCH HELPER  */
 async function post(url, data, btnId, alertId) {
   UI.hide(alertId);
   if (btnId) UI.loading(btnId, true);
@@ -261,7 +261,7 @@ async function post(url, data, btnId, alertId) {
 }
 window.post = post;
 
-/* ── BOOKING (dashboard pages) ───────────────────── */
+/*  BOOKING (dashboard pages)  */
 async function submitBooking() {
   const csrf  = document.getElementById('csrfToken')?.value || '';
   const date  = document.getElementById('bookDate')?.value;
@@ -293,7 +293,7 @@ async function submitBooking() {
 }
 window.submitBooking = submitBooking;
 
-/* ── NOTIFICATION HELPERS ────────────────────────── */
+/*  NOTIFICATION HELPERS  */
 function markRead(id) {
   document.getElementById('ni-'+id)?.classList.remove('unread');
   document.getElementById('ni-'+id)?.querySelector('.notif-unread-dot')?.remove();
@@ -306,7 +306,7 @@ function markAllRead() {
 window.markRead    = markRead;
 window.markAllRead = markAllRead;
 
-/* ── GEOLOCATION ─────────────────────────────────── */
+/*  GEOLOCATION  */
 function requestLocation(onSuccess) {
   if (!navigator.geolocation) { alert('Geolocation not supported.'); return; }
   navigator.geolocation.getCurrentPosition(pos => {
@@ -326,7 +326,7 @@ function requestLocation(onSuccess) {
 }
 window.requestLocation = requestLocation;
 
-/* ── SCROLL REVEAL ───────────────────────────────── */
+/*  SCROLL REVEAL  */
 function initReveal() {
   if (!window.IntersectionObserver) return;
   const obs = new IntersectionObserver(entries=>{
@@ -335,7 +335,7 @@ function initReveal() {
   document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
 }
 
-/* ── COUNTER ANIMATIONS ──────────────────────────── */
+/*  COUNTER ANIMATIONS  */
 function animCounters() {
   document.querySelectorAll('[data-count]').forEach(el => {
     const target=parseInt(el.dataset.count), sfx=el.dataset.suffix||'';
@@ -348,7 +348,7 @@ function animCounters() {
   });
 }
 
-/* ── TELEHEALTH CALL UI ──────────────────────────── */
+/*  TELEHEALTH CALL UI  */
 function initCall() {
   const micBtn=document.getElementById('micBtn');
   const camBtn=document.getElementById('camBtn');
@@ -371,7 +371,7 @@ function initCall() {
   }
 }
 
-/* ── PROVIDER AVAILABILITY ───────────────────────── */
+/*  PROVIDER AVAILABILITY  */
 async function saveAvailability() {
   const csrf=document.getElementById('csrfToken')?.value||'';
   const slots=[];
@@ -382,15 +382,15 @@ async function saveAvailability() {
       if(st&&en)slots.push({day,start:st,end:en,mode});
     });
   });
-  const r=await post('/api/provider/set-availability.php',{slots,csrf_token:csrf},null,'availAlert');
+  const r=await post('/api/hospital/set-availability.php',{slots,csrf_token:csrf},null,'availAlert');
   if(r?.success)UI.alert('ok','Availability saved.','availAlert');
   else UI.alert('err',r?.message||'Failed to save.','availAlert');
 }
 window.saveAvailability = saveAvailability;
 
-/* ════════════════════════════════════════════════════
+/* 
    DOMContentLoaded — wire everything up
-════════════════════════════════════════════════════ */
+ */
 document.addEventListener('DOMContentLoaded', () => {
 
   /* Core inits */
@@ -399,7 +399,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initReveal();
   initCall();
 
-  /* ── LANGUAGE INIT (runs on EVERY page) ──────────
+  /*  LANGUAGE INIT (runs on EVERY page) 
      Reads stored lang from localStorage and applies it
      to every [data-en]/[data-sw] element on the page. */
   Lang.init();
@@ -409,17 +409,17 @@ document.addEventListener('DOMContentLoaded', () => {
     Lang.toggle();
   });
 
-  /* ── MODAL overlay clicks ── */
+  /*  MODAL overlay clicks  */
   document.querySelectorAll('.modal-overlay').forEach(m => {
     m.addEventListener('click', e => { if (e.target===m) closeModal(m.id); });
   });
 
-  /* ── Mobile sidebar ── */
+  /*  Mobile sidebar  */
   document.getElementById('mobToggle')?.addEventListener('click', ()=>Sidebar.openMob());
   document.getElementById('mobSidebarToggle')?.addEventListener('click', ()=>Sidebar.openMob());
   document.getElementById('mobOv')?.addEventListener('click', ()=>Sidebar.closeMob());
 
-  /* ── Counter animation on scroll ── */
+  /*  Counter animation on scroll  */
   const firstCounter = document.querySelector('[data-count]');
   if (firstCounter) {
     const section = firstCounter.closest('section') || firstCounter;
@@ -429,14 +429,14 @@ document.addEventListener('DOMContentLoaded', () => {
     obs.observe(section);
   }
 
-  /* ── Search bar Enter key (homepage) ── */
+  /*  Search bar Enter key (homepage)  */
   ['sLoc','sQuery'].forEach(id=>{
     document.getElementById(id)?.addEventListener('keydown',e=>{
       if(e.key==='Enter'&&window.doSearch) window.doSearch();
     });
   });
 
-  /* ── Dashboard topbar search ── */
+  /*  Dashboard topbar search  */
   const dashSearch = document.getElementById('dashSearch');
   if (dashSearch) {
     dashSearch.addEventListener('keydown', e=>{
@@ -444,7 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  /* ── Mobile hamburger nav ── */
+  /*  Mobile hamburger nav  */
   document.getElementById('navHamburger')?.addEventListener('click', ()=>{
     document.getElementById('pubNav')?.classList.toggle('mob-nav-open');
   });
