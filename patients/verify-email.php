@@ -6,20 +6,13 @@ if (Security::isAuthenticated()) { header('Location: /patients/dashboard.php'); 
 $noSidebar = true; $pageTitle = 'Verify Your Email';
 include dirname(__DIR__) . '/includes/header.php';
 $csrf   = Security::csrfToken();
-$devOtp = '';
-if (APP_ENV === 'development') {
-    foreach ([ROOT_DIR.'/logs/mail_dev.log', sys_get_temp_dir().'/planeazzy_logs/mail_dev.log'] as $lf) {
-        if (file_exists($lf)) {
-            $lines = array_reverse(file($lf, FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES));
-            foreach ($lines as $line) { if (preg_match('/OTP \[[^\]]+\] \([^)]+\): (\d{4,8})/', $line, $m)) { $devOtp = $m[1]; break 2; } }
-        }
-    }
-}
 ?>
 <style>
 .auth-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:48px 20px;background:var(--slate-50)}
 .auth-card{background:#fff;border-radius:20px;padding:40px;box-shadow:0 12px 40px rgba(0,0,0,.08);width:100%;max-width:480px}
 @media(max-width:480px){.auth-card{padding:28px 20px}}
+#otpGrid{max-width:340px;margin:0 auto}
+#otpGrid .otp-digit{width:44px;max-width:44px;flex:0 0 44px;height:52px;font-size:20px}
 </style>
 <main class="auth-wrap">
   <div class="auth-card slide-up">
@@ -44,14 +37,6 @@ if (APP_ENV === 'development') {
         <span data-en="It expires in" data-sw="Inaisha baada ya">It expires in</span> <?= OTP_EXPIRY_MINUTES ?> <span data-en="minutes." data-sw="dakika.">minutes.</span>
       </p>
     </div>
-
-    <?php if ($devOtp): ?>
-    <div style="background:#fefce8;border:1.5px dashed #d97706;border-radius:10px;padding:14px;text-align:center;margin-bottom:16px">
-      <div style="font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">⚡ Dev Mode — OTP Code</div>
-      <div style="font-family:monospace;font-size:34px;font-weight:900;letter-spacing:12px;color:var(--primary)"><?= htmlspecialchars($devOtp) ?></div>
-      <div style="font-size:11px;color:#92400e;margin-top:5px">Copy into boxes below · <a href="/dev-otp.php" style="color:var(--primary)">View all codes</a></div>
-    </div>
-    <?php endif; ?>
 
     <div id="alertBox" class="alert hidden"></div>
 

@@ -13,6 +13,7 @@ $csrf = Security::csrfToken();
 </style>
 <main class="auth-wrap">
   <div class="auth-card slide-up">
+    <div style="margin-bottom:16px"><a href="/" style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:#64748b;text-decoration:none;transition:color .15s" onmouseover="this.style.color='#1978e5'" onmouseout="this.style.color='#64748b'"><i class="fa-solid fa-arrow-left" style="font-size:11px"></i> Back to Homepage</a></div>
     <!-- Progress -->
     <div class="step-wrap">
       <div class="step-row">

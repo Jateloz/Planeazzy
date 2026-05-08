@@ -43,6 +43,11 @@ $csrf = Security::csrfToken();
     </div>
     <div class="auth-right">
       <div class="auth-form">
+        <div style="margin-bottom:8px">
+          <a href="/" style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--slate-500);text-decoration:none;padding:5px 0;transition:color .15s" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--slate-500)'">
+            <i class="fa-solid fa-arrow-left" style="font-size:11px"></i> Back to Homepage
+          </a>
+        </div>
         <div style="margin-bottom:28px">
           <span class="portal-badge pb-blue" style="margin-bottom:14px;display:inline-flex;align-items:center;gap:6px">
             <i class="fa-solid fa-user"></i>
@@ -105,11 +110,7 @@ $csrf = Security::csrfToken();
           <span data-en="Your session is protected with end-to-end encryption." data-sw="Kikao chako kinalindwa na usimbuaji wa mwisho hadi mwisho.">Your session is protected with end-to-end encryption.</span>
         </div>
 
-        <p style="text-align:center;margin-top:16px;font-size:.8125rem;color:var(--slate-400)">
-          <span data-en="Are you a provider?" data-sw="Je, wewe ni mtoa huduma?">Are you a provider?</span>
-          <a href="/providers/login.php" style="color:var(--primary);font-weight:600"
-             data-en="Provider login →" data-sw="Ingia kama Mtoa →">Provider login →</a>
-        </p>
+
       </div>
     </div>
   </div>

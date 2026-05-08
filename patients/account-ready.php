@@ -15,7 +15,7 @@ $csrf = Security::csrfToken();
       <i class="fa-solid fa-circle-check"></i>
     </div>
     <h2 style="font-size:30px;font-weight:900;color:var(--slate-900);letter-spacing:-.03em;margin-bottom:12px">
-      <span data-en="You're all set," data-sw="Umeweka vizuri,">You're all set,</span> <?= $name ?>! 🎉
+      <span data-en="You're all set," data-sw="Umeweka vizuri,">You're all set,</span> <?= $name ?>! 
     </h2>
     <p style="font-size:15px;color:var(--slate-500);line-height:1.8;margin-bottom:28px;max-width:480px;margin-left:auto;margin-right:auto">
       Your Planeazzy account is verified and ready. A welcome email has been sent to your inbox.
@@ -36,7 +36,7 @@ $csrf = Security::csrfToken();
       <?php endforeach; ?>
     </div>
 
-    <!-- ═══ CONSENT SECTION ═══════════════════════════════════ -->
+    <!--  CONSENT SECTION  -->
     <div style="background:var(--white);border:1px solid var(--slate-200);border-radius:16px;padding:28px 32px;text-align:left;margin-bottom:28px;box-shadow:0 4px 6px -1px rgba(0,0,0,.07)">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
         <div style="width:36px;height:36px;background:var(--primary-10);border-radius:9px;display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:16px;flex-shrink:0">
