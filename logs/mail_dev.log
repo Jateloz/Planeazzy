@@ -1,3 +1,146 @@
-[2026-03-19 21:45:35] PROVIDER OTP for odindojatelo@gmail.com (Dr. Odindo): 056246 | SMTP:FAILED
-[2026-03-19 21:52:29] PROVIDER OTP for odindojatelo1@gmail.com (Samantha&apos;s): 827519 | SMTP:FAILED
-[2026-03-19 21:54:23] PROVIDER OTP for odindojatelo2@gmail.com (Dr. Odindo): 042162 | SMTP:FAILED
+[2026-05-06 15:55:55] [MAIL] RAW_EMAIL to=odindojatelo@gmail.com subject=Planeazzy — Booking Received (PZ000015) sent=YES
+[2026-05-06 15:55:58] [MAIL] SMTP_FAIL to=odindojatelo@gmail.com error=DATA failed: 550 5.7.0 Too many emails per second. Please upgrade your plan https://mailtrap.io/billing/plans/testing
+[2026-05-06 15:55:58] [MAIL] MAIL_SKIPPED on localhost to=odindojatelo@gmail.com subject=Planeazzy — New Patient Booking (PZ000015) — check logs/otp_codes.txt
+[2026-05-06 15:55:58] [MAIL] RAW_EMAIL to=odindojatelo@gmail.com subject=Planeazzy — New Patient Booking (PZ000015) sent=NO
+[2026-05-06 15:56:31] [MAIL] RAW_EMAIL to=odindojatelo@gmail.com subject=Planeazzy — Booking Received (PZ000016) sent=YES
+[2026-05-06 16:03:44] [MAIL] RAW_EMAIL to=odindojatelo@gmail.com subject=Planeazzy — Booking Received (PZ000010) sent=YES
+[2026-05-06 16:03:44] [MAIL] RAW_EMAIL to=henryodindo238@gmail.com subject=Planeazzy — New Patient Booking (PZ000010) sent=YES
+[2026-05-06 16:42:01] HOSPITAL-OTP to=prokavainsurance@gmail.com name=PROKAVA HOSPITAL code=497131
+[2026-05-06 16:42:01] HOSPITAL-OTP [prokavainsurance@gmail.com] (PROKAVA HOSPITAL) ID:2 OTP:497131
+[2026-05-06 16:43:07] HOSPITAL-OTP to=prokavainsurance@gmail.com name=PROKAVA HOSPITAL code=311558
+[2026-05-06 16:43:07] HOSPITAL-OTP [prokavainsurance@gmail.com] (PROKAVA HOSPITAL) ID:2 OTP:311558
+[2026-05-06 16:45:57] HOSPITAL-OTP to=prokavainsurance@gmail.com name=PROKAVA HOSPITAL code=868184
+[2026-05-06 16:45:57] HOSPITAL-OTP [prokavainsurance@gmail.com] (PROKAVA HOSPITAL) ID:2 OTP:868184
+[2026-05-06 16:46:23] HOSPITAL-OTP to=prokavainsurance@gmail.com name=PROKAVA HOSPITAL code=882275
+[2026-05-06 16:46:23] HOSPITAL-OTP [prokavainsurance@gmail.com] (PROKAVA HOSPITAL) ID:2 OTP:882275
+[2026-05-06 16:46:42] HOSPITAL-OTP to=prokavainsurance@gmail.com name=PROKAVA HOSPITAL code=256692
+[2026-05-06 16:46:42] HOSPITAL-OTP [prokavainsurance@gmail.com] (PROKAVA HOSPITAL) ID:2 OTP:256692
+[2026-05-06 17:03:15] HOSPITAL-OTP to=gillobrian750@gmail.com name=Plan code=784476
+[2026-05-06 17:03:15] HOSPITAL-OTP [gillobrian750@gmail.com] (Plan) ID:3 OTP:784476
+[2026-05-06 17:08:25] HOSPITAL-OTP to=gillobrian750@gmail.com name=Plan code=248507
+[2026-05-06 17:08:25] HOSPITAL-OTP [gillobrian750@gmail.com] (Plan) ID:3 OTP:248507
+[2026-05-06 17:17:00] [MAIL] OTP:patient to=bestatesolutions@gmail.com name=bestate code=731538
+[2026-05-06 17:17:36] [MAIL] WELCOME to=bestatesolutions@gmail.com name=bestate sent=YES
+[2026-05-06 17:34:35] [MAIL] RAW_EMAIL to=bestatesolutions@gmail.com subject=Planeazzy — Booking Received (PZ000011) sent=YES
+[2026-05-06 17:34:35] [MAIL] RAW_EMAIL to=odindojatelo@gmail.com subject=Planeazzy — New Patient Booking (PZ000011) sent=YES
+[2026-05-06 17:41:44] [MAIL] APPT_CONFIRM to=bestatesolutions@gmail.com patient=bestate SOLUTIONS sent=YES
+[2026-05-06 17:42:03] [MAIL] APPT_CONFIRM to=bestatesolutions@gmail.com patient=bestate SOLUTIONS sent=YES
+[2026-05-06 17:42:23] [MAIL] APPT_CONFIRM to=bestatesolutions@gmail.com patient=bestate SOLUTIONS sent=YES
+[2026-05-06 17:54:06] [MAIL] APPT_CONFIRM to=bestatesolutions@gmail.com patient=bestate SOLUTIONS sent=YES
+[2026-05-06 18:03:37] [MAIL] CANCELLATION to=bestatesolutions@gmail.com sent=YES
+[2026-05-06 18:04:35] [MAIL] APPT_CONFIRM to=bestatesolutions@gmail.com patient=bestate SOLUTIONS sent=YES
+[2026-05-06 18:06:31] [MAIL] APPT_CONFIRM to=bestatesolutions@gmail.com patient=bestate SOLUTIONS sent=YES
+[2026-05-06 18:06:31] [MAIL] PROVIDER_BOOKING to=odindojatelo@gmail.com sent=YES
+[2026-05-06 18:35:12] [MAIL] APPT_CONFIRM to=briangillo.co@gmail.com patient=BRIAN GILLO sent=YES
+[2026-05-06 18:35:12] [MAIL] PROVIDER_BOOKING to=odindojatelo@gmail.com sent=YES
+[2026-05-06 19:20:54] [MAIL] OTP:patient to=odindojatelo@gmail.com name=Henry Odindo code=409786
+[2026-05-06 19:20:54] OTP-REGISTER [odindojatelo@gmail.com] (Henry Odindo) ID:2 OTP:409786 sent:yes
+[2026-05-06 19:40:46] [MAIL] OTP:patient to=odindojatelo@gmail.com name=Henry Odindo code=713952
+[2026-05-06 19:40:46] OTP-REGISTER [odindojatelo@gmail.com] (Henry Odindo) ID:3 OTP:713952 sent:yes
+[2026-05-06 19:42:43] HOSPITAL-OTP to=briangillo.co@gmail.com name=Eyeka code=530488
+[2026-05-06 19:42:43] HOSPITAL-OTP [briangillo.co@gmail.com] (Eyeka) ID:4 OTP:530488
+[2026-05-06 19:43:54] HOSPITAL-OTP to=briangillo.co@gmail.com name=Eyeka code=377970
+[2026-05-06 19:43:54] HOSPITAL-OTP [briangillo.co@gmail.com] (Eyeka) ID:4 OTP:377970
+[2026-05-06 19:45:45] HOSPITAL-OTP to=briangillo750@gmail.com name=Eyeka code=126958
+[2026-05-06 19:45:45] HOSPITAL-OTP [briangillo750@gmail.com] (Eyeka) ID:5 OTP:126958
+[2026-05-06 19:47:04] HOSPITAL-OTP to=odindojatelo@gmail.com name=TamuBoost code=363829
+[2026-05-06 19:47:04] HOSPITAL-OTP [odindojatelo@gmail.com] (TamuBoost) ID:6 OTP:363829
+[2026-05-06 19:55:17] HOSPITAL-OTP to=odindojatelo@gmail.com name=TamuBoost code=520288
+[2026-05-06 19:55:17] HOSPITAL-OTP [odindojatelo@gmail.com] (TamuBoost) ID:6 OTP:520288
+[2026-05-06 19:55:33] HOSPITAL-OTP to=odindojatelo@gmail.com name=TamuBoost code=879195
+[2026-05-06 19:55:33] HOSPITAL-OTP [odindojatelo@gmail.com] (TamuBoost) ID:6 OTP:879195
+[2026-05-06 19:55:39] HOSPITAL-OTP to=odindojatelo@gmail.com name=TamuBoost code=996284
+[2026-05-06 19:55:39] HOSPITAL-OTP [odindojatelo@gmail.com] (TamuBoost) ID:6 OTP:996284
+[2026-05-06 19:58:35] HOSPITAL-OTP to=odindojatelo@gmail.com name=TamuBoost code=318118
+[2026-05-06 19:58:35] HOSPITAL-OTP [odindojatelo@gmail.com] (TamuBoost) ID:6 OTP:318118
+[2026-05-06 19:58:41] HOSPITAL-OTP to=odindojatelo@gmail.com name=TamuBoost code=427035
+[2026-05-06 19:58:41] HOSPITAL-OTP [odindojatelo@gmail.com] (TamuBoost) ID:6 OTP:427035
+[2026-05-06 19:58:53] HOSPITAL-OTP to=odindojatelo@gmail.com name=TamuBoost code=507912
+[2026-05-06 19:58:53] HOSPITAL-OTP [odindojatelo@gmail.com] (TamuBoost) ID:6 OTP:507912
+[2026-05-06 19:58:55] HOSPITAL-OTP to=odindojatelo@gmail.com name=TamuBoost code=242005
+[2026-05-06 19:58:56] HOSPITAL-OTP [odindojatelo@gmail.com] (TamuBoost) ID:6 OTP:242005
+[2026-05-06 19:59:24] HOSPITAL-OTP to=odindojatelo@gmail.com name=TamuBoost code=607175
+[2026-05-06 19:59:25] HOSPITAL-OTP to=odindojatelo@gmail.com name=TamuBoost code=371290
+[2026-05-06 19:59:57] HOSPITAL-OTP to=odindojatelo@gmail.com name=TamuBoost code=735079
+[2026-05-06 20:02:46] [MAIL] OTP:hospital to=odindojatelo@gmail.com name=TamuBoost code=854601
+[2026-05-06 20:04:04] [MAIL] OTP:hospital to=odindojatelo@gmail.com name=TamuBoost code=270869
+[2026-05-06 20:09:47] [MAIL] OTP:hospital to=odindojatelo@gmail.com name=TamuBoost code=681212
+[2026-05-06 20:14:04] [MAIL] OTP:hospital to=odindojatelo@gmail.com name=TamuBoost code=243001
+[2026-05-06 20:14:41] [MAIL] OTP:hospital to=odindojatelo@gmail.com name=TamuBoost code=503461
+[2026-05-06 20:18:12] [MAIL] RAW_EMAIL to=gillobrian750@gmail.com subject=Planeazzy — Booking Received (PZ000012) sent=YES
+[2026-05-06 20:18:13] [MAIL] RAW_EMAIL to=odindojateloz@gmail.com subject=Planeazzy — New Patient Booking (PZ000012) sent=YES
+[2026-05-06 20:20:26] [MAIL] OTP:hospital to=odindojatelo@gmail.com name=TamuBoost code=413416
+[2026-05-06 20:25:30] [MAIL] CANCELLATION to=briangillo.co@gmail.com sent=YES
+[2026-05-06 20:26:46] [MAIL] APPT_CONFIRM to=briangillo.co@gmail.com patient=BRIAN GILLO sent=YES
+[2026-05-06 20:28:26] [MAIL] OTP:hospital to=odindojatelo@gmail.com name=TamuBoost code=785680
+[2026-05-06 20:30:03] [MAIL] APPT_CONFIRM to=briangillo.co@gmail.com patient=BRIAN GILLO sent=YES
+[2026-05-06 20:50:29] [MAIL] OTP:hospital to=odindojatelo@gmail.com name=TamuBoost code=818542
+[2026-05-06 20:54:51] [MAIL] OTP:hospital to=planeazzy@gmail.com name=Nairobi Hospital code=569580
+[2026-05-06 20:56:17] [MAIL] OTP:hospital to=odindojatelo@gmail.com name=TamuBoost code=536111
+[2026-05-06 20:57:23] HOSPITAL-OTP to=odindojatelo@gmail.com name=TamuBoost code=119230
+[2026-05-06 21:03:55] [MAIL] OTP:hospital to=odindojatelo@gmail.com name=TamuBoost code=265568
+[2026-05-06 21:11:35] [MAIL] OTP:hospital to=odindojatelo@gmail.com name=TamuBoost code=232235
+[2026-05-06 21:17:13] [MAIL] OTP:hospital to=odindojatelo@gmail.com name=TamuBoost code=005956
+[2026-05-06 21:26:07] [MAIL] OTP:hospital to=odindojatelo@gmail.com name=TamuBoost code=804854
+[2026-05-06 21:26:58] HOSPITAL-OTP to=odindojatelo@gmail.com name=TamuBoost code=257547
+[2026-05-06 21:26:58] HOSPITAL-OTP [odindojatelo@gmail.com] (TamuBoost) ID:20 OTP:257547
+[2026-05-06 21:32:53] HOSPITAL-OTP to=odindojatelo@gmail.com name=TamuBoost code=874138
+[2026-05-06 21:33:01] HOSPITAL-OTP to=odindojatelo@gmail.com name=TamuBoost code=818723
+[2026-05-06 21:34:14] [MAIL] OTP:hospital to=odindojatelo@gmail.com name=TamuBoost code=990784
+[2026-05-06 21:36:57] HOSPITAL-OTP to=odindojatelo@gmail.com name=TamuBoost code=665332
+[2026-05-06 21:37:01] HOSPITAL-OTP to=odindojatelo@gmail.com name=TamuBoost code=837468
+[2026-05-06 21:37:47] [MAIL] OTP:hospital to=odindojatelo@gmail.com name=TamuBoost code=070376
+[2026-05-07 07:43:04] [MAIL] OTP:hospital to=odindojatelo@gmail.com name=Saman code=403161
+[2026-05-07 08:13:57] HOSPITAL-OTP to=odindojatelo@gmail.com name=Saman code=914175
+[2026-05-07 08:20:55] HOSPITAL-OTP to=odindojatelo@gmail.com name=Saman code=952141
+[2026-05-07 08:32:48] HOSPITAL-OTP to=odindojatelo@gmail.com name=Jatelo code=071316
+[2026-05-07 08:33:48] HOSPITAL-OTP to=odindojatelo@gmail.com name=Jatelo code=809677
+[2026-05-07 08:34:15] HOSPITAL-OTP to=odindojatelo@gmail.com name=Jatelo code=903612
+[2026-05-07 08:36:39] HOSPITAL-OTP to=odindojatelo@gmail.com name=Planeazzy Hospital code=004856
+[2026-05-07 08:37:53] HOSPITAL-OTP to=odindojatelo@gmail.com name=Planeazzy Hospital code=083340
+[2026-05-07 08:48:10] HOSPITAL-OTP to=odindojatelo@gmail.com name=Planeazzy Hospital code=678473
+[2026-05-07 08:48:12] HOSPITAL-OTP to=odindojatelo@gmail.com name=Planeazzy Hospital code=493080
+[2026-05-07 08:53:41] [MAIL] OTP:patient to=odindojatelo@gmail.com name=Henry Odindo code=804494
+[2026-05-07 08:53:53] OTP-REGISTER [odindojatelo@gmail.com] (Henry Odindo) ID:3 OTP:804494 sent:yes
+[2026-05-07 08:55:20] [MAIL] OTP:patient to=odindojatelo@gmail.com name=Henry code=960473
+[2026-05-07 08:55:35] [MAIL] WELCOME to=odindojatelo@gmail.com name=Henry sent=YES
+[2026-05-07 09:23:25] [MAIL] APPT_CONFIRM to=odindojatelo@gmail.com patient=Henry Odindo sent=YES
+[2026-05-07 09:27:16] [MAIL] APPT_CONFIRM to=odindojatelo@gmail.com patient=Henry Odindo sent=YES
+[2026-05-07 09:29:46] [MAIL] APPT_CONFIRM to=odindojatelo@gmail.com patient=Henry Odindo sent=YES
+[2026-05-07 09:32:04] [MAIL] APPT_CONFIRM to=odindojatelo@gmail.com patient=Henry Odindo sent=YES
+[2026-05-07 09:51:07] [MAIL] APPT_CONFIRM to=odindojatelo@gmail.com patient=Henry Odindo sent=YES
+[2026-05-07 09:51:08] [MAIL] PROVIDER_BOOKING to=odindojatelo@gmail.com sent=YES
+[2026-05-07 09:52:12] [MAIL] HOSP_CONFIRM to=odindojatelo@gmail.com facility=Dr. Henry Odindo date=Thu, May 14 2026 at 10:00am sent=YES
+[2026-05-07 09:53:26] [MAIL] APPT_CONFIRM to=odindojatelo@gmail.com patient=Henry Odindo sent=YES
+[2026-05-07 10:02:51] [MAIL] APPT_CONFIRM to=odindojatelo@gmail.com patient=Henry Odindo sent=YES
+[2026-05-07 10:13:06] [MAIL] RAW_EMAIL to=henryodindo238@gmail.com subject=Planeazzy — Booking Received (PZ000017) sent=YES
+[2026-05-07 10:13:06] [MAIL] RAW_EMAIL to=odindojatelo@gmail.com subject=Planeazzy — New Patient Booking (PZ000017) sent=YES
+[2026-05-07 10:36:13] [MAIL] APPT_CONFIRM to=odindojatelo@gmail.com patient=Henry Odindo sent=YES
+[2026-05-07 10:36:14] [MAIL] PROVIDER_BOOKING to=odindojatelo@gmail.com sent=YES
+[2026-05-07 12:09:59] [MAIL] RAW_EMAIL to=henryodindo238@gmail.com subject=Planeazzy — Booking Received (PZ000018) sent=YES
+[2026-05-07 12:09:59] [MAIL] RAW_EMAIL to=odindojatelo@gmail.com subject=Planeazzy — New Patient Booking (PZ000018) sent=YES
+[2026-05-08 08:50:18] HOSPITAL-OTP to=odindojatelo@gmail.com name=TamuBoost code=262409
+[2026-05-08 08:50:20] [HospitalMailer] SENT [202] to=odindojatelo@gmail.com subject=Clinical Precision — Your Verification Code
+[2026-05-08 08:50:20] HOSPITAL-OTP to=odindojatelo@gmail.com name=TamuBoost code=370455
+[2026-05-08 08:50:21] [HospitalMailer] SENT [202] to=odindojatelo@gmail.com subject=Clinical Precision — Your Verification Code
+[2026-05-08 08:50:51] [HospitalMailer] SENT [202] to=odindojatelo@gmail.com subject=Welcome to Clinical Precision — Complete Your Setup
+[2026-05-08 10:07:07] HOSPITAL-OTP to=odindojatelo@gmail.com name=TamuBoost code=102096
+[2026-05-08 10:07:08] [HospitalMailer] SENT [202] to=odindojatelo@gmail.com subject=Clinical Precision — Your Verification Code
+[2026-05-08 10:07:23] [HospitalMailer] SENT [202] to=odindojatelo@gmail.com subject=Welcome to Clinical Precision — Complete Your Setup
+[2026-05-08 10:20:17] [MAIL] OTP:patient to=odindojatelo@gmail.com name=Henry Odindo code=167356
+[2026-05-08 10:20:19] OTP-REGISTER [odindojatelo@gmail.com] (Henry Odindo) ID:4 OTP:167356 sent:yes
+[2026-05-08 10:49:44] HOSPITAL-OTP to=odindojatelo@gmail.com name=TamuBoost code=660345
+[2026-05-08 10:49:45] [HospitalMailer] SENT [202] to=odindojatelo@gmail.com subject=Clinical Precision — Your Verification Code
+[2026-05-08 10:49:45] HOSPITAL-OTP to=odindojatelo@gmail.com name=TamuBoost code=915141
+[2026-05-08 10:49:45] [HospitalMailer] SENT [202] to=odindojatelo@gmail.com subject=Clinical Precision — Your Verification Code
+[2026-05-08 10:51:08] HOSPITAL-OTP to=gillobrian750@gmail.com name=TamuBoost code=541762
+[2026-05-08 10:51:09] [HospitalMailer] SENT [202] to=gillobrian750@gmail.com subject=Clinical Precision — Your Verification Code
+[2026-05-08 10:51:25] HOSPITAL-OTP to=odindojatelo@gmail.com name=TamuBoost code=469022
+[2026-05-08 10:51:26] [HospitalMailer] SENT [202] to=odindojatelo@gmail.com subject=Clinical Precision — Your Verification Code
+[2026-05-08 10:51:44] [HospitalMailer] SENT [202] to=odindojatelo@gmail.com subject=Welcome to Clinical Precision — Complete Your Setup
+[2026-05-08 10:57:03] HOSPITAL-OTP to=odindojatelo@gmail.com name=TamuBoost code=719591
+[2026-05-08 10:57:04] [HospitalMailer] SENT [202] to=odindojatelo@gmail.com subject=Clinical Precision — Your Verification Code
+[2026-05-08 10:57:40] [HospitalMailer] SENT [202] to=odindojatelo@gmail.com subject=Welcome to Clinical Precision — Complete Your Setup
+[2026-05-08 11:13:45] [HospitalMailer] SENT [202] to=odindojatelo@gmail.com subject=Clinical Precision — Your Application is Under Review
+[2026-05-08 11:14:59] [HospitalMailer] SENT [202] to=odindojatelo@gmail.com subject=Clinical Precision — Your Application is Under Review
+[2026-05-08 11:18:21] [HospitalMailer] SENT [202] to=odindojatelo@gmail.com subject=Clinical Precision — Your Application is Under Review

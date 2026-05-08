@@ -1,1266 +1,1242 @@
 <?php
 /**
- * Planeazzy — Hospital Dashboard
- * /hospital/dashboard.php
+ * Clinical Precision — Hospital Dashboard v3
+ * Fixes: billing removed, hover fix, profile pics, rich doctor management
  */
-require_once dirname(__DIR__) . '/config/config.php';
-require_once dirname(__DIR__) . '/services/Security.php';
-require_once dirname(__DIR__) . '/services/Database.php';
+require_once dirname(__DIR__, 2) . '/config/config.php';
+require_once dirname(__DIR__, 2) . '/services/Security.php';
+require_once dirname(__DIR__, 2) . '/services/Database.php';
 Security::startSession();
 
-// Auth check — provider must be a hospital/clinic type
-if (empty($_SESSION['provider_id']) || empty($_SESSION['is_provider'])) {
-    header('Location: /hospital/login.php'); exit;
-}
-$pvid  = (int)$_SESSION['provider_id'];
-$db    = Database::getInstance();
-$tab   = $_GET['tab'] ?? 'overview';
-$prov  = $db->fetchOne('SELECT * FROM providers WHERE id=:id', [':id' => $pvid]);
-$ptype = $prov['type'] ?? 'hospital';
+if (empty($_SESSION['hospital_id']))   { header('Location: /hospital/onboarding/login.php');   exit; }
+if (empty($_SESSION['hospital_auth'])) { header('Location: /hospital/onboarding/pending.php'); exit; }
 
-// Redirect if wrong portal
-if (!in_array($ptype, ['hospital','clinic'])) {
-    header('Location: /providers/dashboard.php'); exit;
+$hid  = (int)$_SESSION['hospital_id'];
+$db   = Database::getInstance();
+$hosp = $db->fetchOne('SELECT * FROM hospital_providers WHERE id=:id', [':id' => $hid]);
+
+if (!$hosp || $hosp['status'] !== 'approved' || !$hosp['is_active']) {
+    $_SESSION['hospital_auth'] = false; header('Location: /hospital/onboarding/pending.php'); exit;
 }
 
+$tab  = in_array($_GET['tab'] ?? '', ['overview','appointments','doctors','services','insurance','analytics','notifications','settings'])
+      ? ($_GET['tab'] ?? 'overview') : 'overview';
 $csrf = Security::csrfToken();
-// Set session provider_name
-$_SESSION['provider_name'] = $prov['name'] ?? 'Hospital';
 
-// ── DATA QUERIES ──────────────────────────────────────────
-$allAppts = $db->fetchAll(
-    'SELECT a.*, pt.first_name, pt.last_name, pt.phone pat_phone, pt.email pat_email
-     FROM appointments a
-     LEFT JOIN patients pt ON a.patient_id = pt.id
-     WHERE a.provider_id = :pid
-     ORDER BY a.appointment_at DESC LIMIT 200',
-    [':pid' => $pvid]
+/*  DB queries  */
+$depts   = $db->fetchAll('SELECT * FROM hospital_departments WHERE hospital_id=:h ORDER BY sort_order,name', [':h'=>$hid]);
+$doctors = $db->fetchAll(
+    'SELECT d.*,dep.name dept_name FROM hospital_doctors d
+     LEFT JOIN hospital_departments dep ON dep.id=d.department_id
+     WHERE d.hospital_id=:h AND d.is_active=1 ORDER BY d.name', [':h'=>$hid]
 );
+$notifs  = $db->fetchAll('SELECT * FROM hospital_notifications WHERE hospital_id=:h ORDER BY created_at DESC LIMIT 60', [':h'=>$hid]);
+$unread  = count(array_filter($notifs, fn($n)=>!$n['is_read']));
+$insurers= $db->fetchAll('SELECT * FROM hospital_insurance WHERE hospital_id=:h', [':h'=>$hid]);
+$insMap  = []; foreach ($insurers as $ins) $insMap[$ins['provider_key']] = $ins;
 
-$today     = array_values(array_filter($allAppts, fn($a) => date('Y-m-d', strtotime($a['appointment_at'])) === date('Y-m-d')));
-$upcoming  = array_values(array_filter($allAppts, fn($a) => $a['status'] === 'scheduled' && strtotime($a['appointment_at']) >= time()));
-$completed = array_values(array_filter($allAppts, fn($a) => $a['status'] === 'completed'));
-$cancelled = array_values(array_filter($allAppts, fn($a) => $a['status'] === 'cancelled'));
+/*  Stats  */
+$todayCount   = $db->fetchOne('SELECT COUNT(*) c FROM hospital_appointments WHERE hospital_id=:h AND DATE(appointment_at)=CURDATE()', [':h'=>$hid])['c'] ?? 0;
+$pendingCount = $db->fetchOne('SELECT COUNT(*) c FROM hospital_appointments WHERE hospital_id=:h AND status="pending"', [':h'=>$hid])['c'] ?? 0;
+$patientCount = $db->fetchOne('SELECT COUNT(DISTINCT LOWER(TRIM(patient_email))) c FROM hospital_appointments WHERE hospital_id=:h AND patient_email IS NOT NULL AND patient_email != ""', [':h'=>$hid])['c'] ?? 0;
+$docsOn       = $db->fetchOne('SELECT COUNT(*) c FROM hospital_doctors WHERE hospital_id=:h AND status="on-duty" AND is_active=1', [':h'=>$hid])['c'] ?? 0;
+$apptRows     = $db->fetchAll('SELECT * FROM hospital_appointments WHERE hospital_id=:h ORDER BY appointment_at DESC LIMIT 100', [':h'=>$hid]);
 
-// Unique patients
-$patientIds = array_unique(array_column($allAppts, 'patient_id'));
-$totalPatients = count($patientIds);
+$services     = json_decode($hosp['services'] ?? '[]', true) ?? [];
+$facilityName = $hosp['facility_name'] ?? ($hosp['admin_name'] ?? 'Hospital');
+$adminName    = $hosp['admin_name'] ?? 'Admin';
+$logoPath     = $hosp['logo_path'] ?? '';
+$initials     = strtoupper(implode('', array_map(fn($w)=>$w[0], array_slice(explode(' ', trim($adminName)), 0, 2))));
+$hour         = (int)date('G');
+$greetEn      = $hour < 12 ? 'Good morning' : ($hour < 17 ? 'Good afternoon' : 'Good evening');
 
-// Recent patients
-$recentPatients = [];
-$seenPats = [];
-foreach ($allAppts as $a) {
-    if (!in_array($a['patient_id'], $seenPats) && !empty($a['first_name'])) {
-        $recentPatients[] = $a;
-        $seenPats[] = $a['patient_id'];
-    }
-}
+/*  Insurance definitions  */
+$insurerDefs = [
+  ['nhif','NHIF','National Hospital Insurance Fund','account_balance','#16a34a'],
+  ['jubilee','Jubilee','Jubilee Health Insurance','health_and_safety','#005ab4'],
+  ['aon','Aon Minet','Aon Minet Healthcare','business_center','#d97706'],
+  ['axa','AXA Mansard','AXA Mansard Insurance','policy','#7c3aed'],
+  ['aar','AAR','AAR Healthcare','medical_services','#475569'],
+  ['cic','CIC','CIC Insurance Group','groups','#0d9488'],
+];
 
-// Doctors (providers linked via appointments)
-$allDocs = $db->fetchAll(
-    'SELECT * FROM providers WHERE is_active=1 AND is_verified=1 AND type="doctor" ORDER BY rating DESC LIMIT 20'
-);
-
-// Nearby providers
-$nearbyProviders = $db->fetchAll(
-    'SELECT * FROM providers WHERE is_active=1 AND is_verified=1 AND type="doctor" AND id!=:pid ORDER BY rating DESC LIMIT 12',
-    [':pid' => $pvid]
-);
-
-// Hospital info
-$hName     = htmlspecialchars($prov['name'] ?? 'Hospital');
-$initials  = strtoupper(implode('', array_map(fn($w) => $w[0], array_slice(explode(' ', trim($hName)), 0, 2))));
-$pStatus   = $prov['status'] ?? 'pending';
-
-// Search filter
-$searchQ = htmlspecialchars(trim($_GET['q'] ?? ''));
-
-// Stats
-$todayCount    = count($today);
-$upcomingCount = count($upcoming);
-$completedCount = count($completed);
-
-// Bed occupancy (simulated - would come from a beds table in production)
-$totalBeds  = (int)($prov['total_beds'] ?? 120);
-$occupiedBeds = min($totalBeds, (int)round($totalBeds * 0.74));
-
-// Monthly revenue (simulated - would come from billing table)
-$monthlyRev = 485600;
-
-function statusPill(string $status): string {
-    $map = [
-        'scheduled'   => ['blue',   'Scheduled'],
-        'confirmed'   => ['teal',   'Confirmed'],
-        'in_progress' => ['purple', 'In Progress'],
-        'completed'   => ['green',  'Completed'],
-        'cancelled'   => ['red',    'Cancelled'],
-        'no_show'     => ['gray',   'No Show'],
-    ];
-    [$cls, $lbl] = $map[$status] ?? ['gray', ucfirst($status)];
-    return "<span class=\"h-pill $cls\">$lbl</span>";
-}
-
-function locPill(string $type): string {
-    if ($type === 'telehealth') return '<span class="h-pill blue"><i class="fa-solid fa-video"></i> Telehealth</span>';
-    if ($type === 'home_visit') return '<span class="h-pill teal"><i class="fa-solid fa-house-medical-circle-check"></i> Home</span>';
-    return '<span class="h-pill teal"><i class="fa-solid fa-location-dot"></i> In-Person</span>';
-}
+/*  Service definitions  */
+$serviceDefs = [
+  ['general_practice','General Practice','stethoscope'],
+  ['pediatrics','Pediatrics','child_care'],
+  ['radiology','Radiology','radiology'],
+  ['cardiology','Cardiology','cardiology'],
+  ['maternity','Maternity','pregnant_woman'],
+  ['laboratory','Laboratory','biotech'],
+  ['surgery','Surgery','surgical'],
+  ['oncology','Oncology','oncology'],
+  ['emergency','Emergency & Critical Care','emergency'],
+  ['pharmacy','Pharmacy','local_pharmacy'],
+  ['physiotherapy','Physiotherapy','accessibility_new'],
+  ['nutrition','Nutrition & Dietetics','nutrition'],
+];
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="<?= $hName ?> — Hospital Dashboard · Planeazzy">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231978e5'/><text y='72' font-size='65' text-anchor='middle' x='50' fill='white'>+</text></svg>">
-  <title><?= $hName ?> Dashboard — Planeazzy</title>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow">
+  <title><?= htmlspecialchars($facilityName) ?> — Planeazzy Provider</title>
+  <link rel="icon" type="image/png" href="/assets/images/favicon.png">
+  <link rel="apple-touch-icon" href="/assets/images/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/clinical.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
-  <link rel="stylesheet" href="/assets/css/hospital.css">
+<style>
+:root{--cp-primary:#005ab4;--cp-secondary:#006a6a;--cp-error:#ba1a1a;--cp-on-surface:#1a1c1e;--cp-on-surface-var:#42474e;--cp-outline:#73777f;--cp-outline-var:#c1c6d5;--cp-surface-container-lowest:#fff;--cp-surface-container-low:#f3f4f6;--cp-surface-container-high:#e5e7eb;--cp-surface-container-highest:#d1d5db;--cp-r:10px;--cp-r-xl:16px;--cp-shadow-sm:0 1px 3px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);--cp-sb-w:220px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#f0f2f5;color:var(--cp-on-surface);line-height:1.5;min-height:100vh}
+a{color:inherit;text-decoration:none}
+/*  No underlines on hover globally  */
+a:hover{text-decoration:none}
+/*  Layout  */
+.db-wrap{display:flex;min-height:100vh}
+.db-main{margin-left:var(--cp-sb-w);flex:1;display:flex;flex-direction:column;min-width:0}
+.db-content{padding:24px 28px;flex:1}
+/*  Sidebar  */
+.cp-sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--cp-sb-w);background:#fff;border-right:1px solid rgba(193,198,213,.2);display:flex;flex-direction:column;z-index:200;overflow:hidden;transition:transform .25s}
+.cp-sidebar-brand{padding:16px 16px 12px;border-bottom:1px solid rgba(193,198,213,.15)}
+.cp-sidebar-brand-name{font-size:.875rem;font-weight:900;letter-spacing:-.03em;color:var(--cp-primary)}
+.cp-sidebar-brand-sub{font-size:.5625rem;text-transform:uppercase;letter-spacing:.1em;color:var(--cp-outline);margin-bottom:10px}
+.cp-sidebar-facility{display:flex;align-items:center;gap:8px}
+.cp-facility-icon{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--cp-primary),#0873df);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.cp-sidebar-section-label{font-size:.5rem;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:var(--cp-outline);padding:12px 14px 4px;opacity:.7}
+.cp-nav-item{display:flex;align-items:center;gap:9px;padding:9px 14px;border-radius:var(--cp-r);margin:1px 8px;font-size:.8rem;font-weight:500;color:var(--cp-on-surface-var);cursor:pointer;transition:all .15s;border:none;background:none;width:calc(100% - 16px);text-align:left;text-decoration:none}
+.cp-nav-item:hover{background:var(--cp-surface-container-low);color:var(--cp-on-surface);text-decoration:none}
+.cp-nav-item.active{background:rgba(0,90,180,.08);color:var(--cp-primary);font-weight:700}
+.cp-nav-item.active .material-symbols-outlined{color:var(--cp-primary)}
+.cp-nav-badge{margin-left:auto;background:var(--cp-primary);color:#fff;font-size:.5rem;font-weight:800;padding:1px 5px;border-radius:9999px;min-width:16px;text-align:center}
+.cp-sidebar-footer{padding:8px;border-top:1px solid rgba(193,198,213,.15)}
+/*  Topbar  */
+.cp-dash-topbar{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.95);backdrop-filter:blur(12px);border-bottom:1px solid rgba(193,198,213,.2);padding:10px 24px;display:flex;align-items:center;gap:12px}
+.cp-topbar-search{display:flex;align-items:center;gap:8px;background:var(--cp-surface-container-low);border-radius:9999px;padding:6px 14px;flex:1;max-width:380px}
+.cp-topbar-search input{border:none;background:none;outline:none;font-size:.875rem;font-family:inherit;color:var(--cp-on-surface);width:100%}
+.cp-icon-btn{position:relative;width:36px;height:36px;border:none;background:none;cursor:pointer;border-radius:var(--cp-r);display:flex;align-items:center;justify-content:center;color:var(--cp-on-surface-var);transition:background .15s;text-decoration:none}
+.cp-icon-btn:hover{background:var(--cp-surface-container-low);text-decoration:none}
+.notif-dot{position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:50%;background:#ef4444;border:1.5px solid #fff}
+.db-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#005ab4,#0873df);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;color:#fff;flex-shrink:0;cursor:pointer;overflow:hidden}
+.db-avatar img{width:100%;height:100%;object-fit:cover}
+.db-hamb{display:none;align-items:center;justify-content:center;width:36px;height:36px;border:none;background:none;cursor:pointer;border-radius:8px;color:var(--cp-on-surface-var)}
+/*  Stats grid  */
+.cp-stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+.cp-stat-card{background:#fff;border-radius:var(--cp-r-xl);padding:16px 18px;border:1px solid rgba(193,198,213,.15);box-shadow:var(--cp-shadow-sm);display:flex;flex-direction:column;gap:8px}
+.cp-stat-icon-wrap{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:2px}
+.cp-stat-label{font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--cp-outline)}
+.cp-stat-value{font-size:1.625rem;font-weight:900;letter-spacing:-.04em;color:var(--cp-on-surface)}
+/*  Panels / cards  */
+.db-panel{background:#fff;border-radius:var(--cp-r-xl);padding:20px;border:1px solid rgba(193,198,213,.15);box-shadow:var(--cp-shadow-sm)}
+.db-bento-main{display:grid;grid-template-columns:4fr 8fr;gap:16px;margin-bottom:16px}
+.db-bento-bottom{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+/*  Table  */
+.cp-table-wrap{overflow-x:auto}
+.cp-table{width:100%;border-collapse:collapse;font-size:.8125rem}
+.cp-table th{background:var(--cp-surface-container-low);padding:10px 14px;text-align:left;font-size:.625rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--cp-outline);white-space:nowrap}
+.cp-table td{padding:11px 14px;border-bottom:1px solid rgba(193,198,213,.12);vertical-align:middle}
+.cp-table tbody tr:hover{background:var(--cp-surface-container-low)}
+.cp-table tbody tr:last-child td{border-bottom:none}
+/*  Booking row  */
+.db-booking-row{display:flex;gap:10px;padding:10px;border-radius:var(--cp-r);cursor:pointer;transition:background .15s}
+.db-booking-row:hover{background:var(--cp-surface-container-low)}
+.cp-booking-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#1978e5,#1251a3);display:flex;align-items:center;justify-content:center;font-size:.625rem;font-weight:800;color:#fff;flex-shrink:0}
+/*  Status pills  */
+.cp-status-pill{display:inline-block;padding:2px 9px;border-radius:9999px;font-size:.5625rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.cp-status-pending{background:#fef9c3;color:#854d0e}
+.cp-status-confirmed{background:#dcfce7;color:#166534}
+.cp-status-completed,.cp-status-done{background:#dbeafe;color:#1e40af}
+.cp-status-cancelled{background:#fee2e2;color:#991b1b}
+/*  Badges  */
+.cp-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:9999px;font-size:.5625rem;font-weight:700}
+.cp-badge-primary{background:rgba(0,90,180,.1);color:var(--cp-primary)}
+.cp-badge-secondary{background:rgba(0,106,106,.1);color:var(--cp-secondary)}
+.cp-badge-success{background:#dcfce7;color:#166534}
+.cp-badge-warning{background:#fef9c3;color:#92400e}
+/*  Doctor cards  */
+.cp-doc-card{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--cp-surface-container-low);border-radius:var(--cp-r);border:1px solid rgba(193,198,213,.15)}
+.cp-doc-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#0873df,#005ab4);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;color:#fff;flex-shrink:0;overflow:hidden}
+.cp-doc-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.cp-status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot-on{background:#22c55e}.dot-break{background:#f59e0b}.dot-off{background:#94a3b8}.dot-susp{background:#ef4444}
+/*  Dept cards  */
+.cp-dept-card{background:var(--cp-surface-container-low);border-radius:var(--cp-r);padding:12px;border:1px solid rgba(193,198,213,.15)}
+.cp-dept-icon{width:36px;height:36px;border-radius:8px;background:rgba(0,106,106,.1);display:flex;align-items:center;justify-content:center;color:var(--cp-secondary);flex-shrink:0}
+/*  Insurance card  */
+.cp-ins-card{background:#fff;border-radius:var(--cp-r-xl);padding:16px;border:1px solid rgba(193,198,213,.15);box-shadow:var(--cp-shadow-sm);display:flex;gap:12px}
+.cp-ins-icon-wrap{width:44px;height:44px;border-radius:10px;background:var(--cp-surface-container-low);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+/*  Chart  */
+.cp-chart-wrap{display:flex;gap:4px;align-items:flex-end;height:120px;position:relative;padding-bottom:24px}
+.cp-chart-grid{position:absolute;inset:0;bottom:24px;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none}
+.cp-chart-grid-line{border-top:1px dashed rgba(193,198,213,.3);width:100%}
+.cp-bar-col{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;height:100%;justify-content:flex-end}
+.cp-bar{width:100%;border-radius:4px 4px 0 0;background:rgba(0,90,180,.25);transition:height .4s ease;cursor:pointer;position:relative;z-index:1}
+.cp-bar:hover,.cp-bar.active{background:var(--cp-primary)}
+.cp-bar-label{font-size:.5rem;color:var(--cp-outline);font-weight:600;white-space:nowrap;position:absolute;bottom:4px}
+/*  Track / fill  */
+.cp-bed-track{height:5px;background:var(--cp-surface-container-high);border-radius:9999px;overflow:hidden}
+.cp-bed-fill{height:100%;background:var(--cp-primary);border-radius:9999px}
+/*  Form  */
+.cp-form-label{font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--cp-on-surface-var);margin-bottom:5px;display:block}
+.cp-form-input{width:100%;padding:10px 13px;background:var(--cp-surface-container-low);border:2px solid transparent;border-radius:var(--cp-r);font-family:inherit;font-size:.875rem;color:var(--cp-on-surface);outline:none;transition:all .2s}
+.cp-form-input:focus{background:#fff;border-color:var(--cp-primary);box-shadow:0 0 0 4px rgba(0,90,180,.08)}
+.cp-form-group{margin-bottom:14px}
+/*  Buttons  */
+.cp-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:var(--cp-r);border:none;font-family:inherit;font-size:.8125rem;font-weight:700;cursor:pointer;transition:all .15s}
+.cp-btn:hover{opacity:.88}
+.cp-btn-primary{background:var(--cp-primary);color:#fff}
+.cp-btn-ghost{background:var(--cp-surface-container-low);color:var(--cp-on-surface);border:1.5px solid var(--cp-outline-var)}
+.cp-btn-sm{padding:6px 12px;font-size:.75rem}
+.cp-btn-full{width:100%;justify-content:center}
+/*  Tabs  */
+.cp-tab-row{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap}
+.cp-tab-btn{padding:6px 14px;border-radius:9999px;border:1.5px solid var(--cp-outline-var);background:transparent;font-family:inherit;font-size:.75rem;font-weight:600;color:var(--cp-on-surface-var);cursor:pointer;transition:all .15s}
+.cp-tab-btn:hover{background:var(--cp-surface-container-low);border-color:var(--cp-primary)}
+.cp-tab-btn.active{background:var(--cp-primary);color:#fff;border-color:var(--cp-primary)}
+/*  Modal  */
+.cp-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:none;align-items:center;justify-content:center;padding:16px}
+.cp-modal-overlay.open{display:flex}
+.cp-modal{background:#fff;border-radius:18px;padding:24px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 48px rgba(0,0,0,.18)}
+.cp-modal-lg{max-width:700px}
+.cp-modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+/*  Upload zone  */
+.upload-zone{border:2px dashed var(--cp-outline-var);border-radius:var(--cp-r-xl);padding:24px;text-align:center;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--cp-primary);background:rgba(0,90,180,.03)}
+.upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+/*  Avatar upload  */
+.avatar-upload-wrap{position:relative;width:80px;height:80px;margin:0 auto 12px}
+.avatar-upload-wrap img,.avatar-upload-wrap .avatar-placeholder{width:80px;height:80px;border-radius:50%;object-fit:cover}
+.avatar-placeholder{background:linear-gradient(135deg,#0873df,#005ab4);display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:800;color:#fff}
+.avatar-upload-btn{position:absolute;bottom:0;right:0;width:26px;height:26px;border-radius:50%;background:var(--cp-primary);border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff}
+/*  Services grid  */
+.svc-grid-dash{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+/*  Toast  */
+.toast{position:fixed;bottom:24px;right:24px;z-index:9999;background:#1e293b;color:#fff;padding:12px 18px;border-radius:12px;font-size:.875rem;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.2);transform:translateY(80px);opacity:0;transition:all .3s;max-width:320px;display:flex;align-items:center;gap:8px}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.ok{background:#065f46;border-left:4px solid #34d399}
+.toast.err{background:#7f1d1d;border-left:4px solid #f87171}
+/*  Ins grid  */
+.ins-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+/*  Mobile  */
+.cp-mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:199}
+.cp-mob-overlay.open{display:block}
+.cp-mob-toggle{display:none;position:fixed;bottom:24px;right:24px;z-index:300;width:50px;height:50px;border-radius:50%;background:var(--cp-primary);color:#fff;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(0,90,180,.35);align-items:center;justify-content:center}
+/*  Footer  */
+.cp-footer{padding:16px 28px;border-top:1px solid rgba(193,198,213,.15);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;font-size:.6875rem;color:var(--cp-outline);background:#fff}
+.cp-footer-links{display:flex;gap:14px}
+.cp-footer-links a{color:var(--cp-outline);font-size:.6875rem;text-decoration:none}
+.cp-footer-links a:hover{color:var(--cp-primary);text-decoration:none}
+/*  Notification tab  */
+.notif-item{display:flex;gap:12px;padding:12px 14px;border-radius:var(--cp-r);border:1.5px solid rgba(193,198,213,.2);background:#fff;transition:all .2s;margin-bottom:8px}
+.notif-item.unread{border-color:rgba(0,90,180,.18);background:#f0f7ff}
+.notif-icon{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+/*  Page header row  */
+.phd{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px}
+.ph-title{font-size:1.125rem;font-weight:800;letter-spacing:-.03em}
+.ph-sub{font-size:.8125rem;color:var(--cp-on-surface-var);margin-top:2px}
+/*  Responsive  */
+@media(max-width:1024px){.db-main{margin-left:0}.cp-sidebar{transform:translateX(-100%)}.cp-sidebar.open{transform:translateX(0)}.db-hamb{display:flex}.db-bento-main{grid-template-columns:1fr}.cp-mob-toggle{display:flex}}
+@media(max-width:768px){.db-bento-bottom{grid-template-columns:1fr}.cp-stat-grid{grid-template-columns:1fr 1fr}.ins-grid{grid-template-columns:1fr}.db-content{padding:14px 16px}}
+@media(max-width:480px){.cp-stat-grid{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
-<input type="hidden" id="hCsrf" value="<?= htmlspecialchars($csrf) ?>">
+<div class="db-wrap">
 
-<div class="h-layout" id="hLayout">
-
-<!-- ═══════════════════════════════════════════════════════════
-     SIDEBAR — exact design from uploaded docs 2 & 3
-═══════════════════════════════════════════════════════════ -->
-<aside class="h-sidebar" id="hSidebar">
-
-  <!-- Logo -->
-  <div class="hs-logo">
-    <div class="hs-logo-icon">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 2C8 2 5 5 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-4-3-7-7-7z" fill="white"/>
-        <path d="M12 12V6M9 9h6" stroke="#1978e5" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-    </div>
-    <div class="hs-logo-row">
-      <span class="hs-logo-text">Planeazzy</span>
-      <button class="hs-toggle-btn" title="Collapse sidebar"><i class="fa-solid fa-chevron-left" id="sbToggleIc"></i></button>
+<!--  SIDEBAR  -->
+<aside class="cp-sidebar" id="cpSidebar">
+  <div class="cp-sidebar-brand">
+    <?php if($logoPath):?>
+    <img src="<?=htmlspecialchars($logoPath)?>" alt="<?=htmlspecialchars($facilityName)?>" style="height:32px;object-fit:contain;margin-bottom:6px;border-radius:6px">
+    <?php else:?>
+    <div class="cp-sidebar-brand-name">Planeazzy</div>
+    <?php endif;?>
+    <div class="cp-sidebar-brand-sub">Provider Dashboard</div>
+    <div class="cp-sidebar-facility">
+      <div class="cp-facility-icon"><i class="fa-solid fa-hospital" style="font-size:13px;color:#fff"></i></div>
+      <div>
+        <div style="font-size:.8rem;font-weight:700;color:var(--cp-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px"><?=htmlspecialchars($facilityName)?></div>
+        <div style="font-size:.6rem;color:var(--cp-outline)">Provider Admin</div>
+      </div>
     </div>
   </div>
-
-  <!-- Hospital identity -->
-  <div class="hs-user">
-    <div class="hs-av"><?= $initials ?></div>
-    <div class="hs-user-info">
-      <div class="hs-user-name"><?= $hName ?></div>
-      <div class="hs-user-role"><?= ucfirst($ptype) ?> Portal</div>
-    </div>
+  <div style="padding:8px 0;flex:1;overflow-y:auto">
+    <div class="cp-sidebar-section-label">MAIN</div>
+    <?php foreach([
+      ['overview','fa-gauge','Overview',0],
+      ['appointments','fa-calendar-check','Appointments',$pendingCount],
+      ['doctors','fa-user-doctor','Doctors',0],
+      ['services','fa-briefcase-medical','Services',0],
+    ] as [$k,$ic,$lb,$bd]):$a=$tab===$k;?>
+    <a href="?tab=<?=$k?>" class="cp-nav-item <?=$a?'active':''?>">
+      <i class="fa-solid <?=$ic?>" style="font-size:14px;width:16px;text-align:center"></i>
+      <span><?=$lb?></span>
+      <?php if($bd>0):?><span class="cp-nav-badge"><?=$bd?></span><?php endif;?>
+    </a>
+    <?php endforeach;?>
+    <div class="cp-sidebar-section-label" style="margin-top:4px">REPORTS</div>
+    <?php foreach([
+      ['insurance','fa-shield-halved','Insurance',0],
+      ['analytics','fa-chart-line','Analytics',0],
+      ['notifications','fa-bell','Notifications',$unread],
+    ] as [$k,$ic,$lb,$bd]):$a=$tab===$k;?>
+    <a href="?tab=<?=$k?>" class="cp-nav-item <?=$a?'active':''?>">
+      <i class="fa-solid <?=$ic?>" style="font-size:14px;width:16px;text-align:center"></i>
+      <span><?=$lb?></span>
+      <?php if($bd>0):?><span class="cp-nav-badge"><?=$bd?></span><?php endif;?>
+    </a>
+    <?php endforeach;?>
+    <div class="cp-sidebar-section-label" style="margin-top:4px">SYSTEM</div>
+    <a href="?tab=settings" class="cp-nav-item <?=$tab==='settings'?'active':''?>">
+      <i class="fa-solid fa-gear" style="font-size:14px;width:16px;text-align:center"></i>
+      <span>Settings</span>
+    </a>
   </div>
-
-  <!-- Navigation — exactly matches the patient dashboard sidebar style from uploaded code -->
-  <nav style="flex:1;padding:12px 8px 4px;overflow:hidden">
-
-    <div class="hs-section">
-      <span class="hs-sect-lbl">Main Menu</span>
-      <a href="?tab=overview" class="hs-item <?= $tab==='overview'?'active':'' ?>">
-        <i class="fa-solid fa-gauge hs-item-icon"></i>
-        <span class="hs-item-label">Dashboard</span>
-      </a>
-      <a href="?tab=appointments" class="hs-item <?= $tab==='appointments'?'active':'' ?>">
-        <i class="fa-solid fa-calendar-check hs-item-icon"></i>
-        <span class="hs-item-label" data-en="Appointments" data-sw="Miadi">Appointments</span>
-        <?php if($upcomingCount > 0): ?>
-        <span class="hs-badge"><?= $upcomingCount ?></span>
-        <?php endif; ?>
-      </a>
-      <a href="?tab=patients" class="hs-item <?= $tab==='patients'?'active':'' ?>">
-        <i class="fa-solid fa-users hs-item-icon"></i>
-        <span class="hs-item-label">Patients</span>
-      </a>
-      <a href="?tab=doctors" class="hs-item <?= $tab==='doctors'?'active':'' ?>">
-        <i class="fa-solid fa-user-doctor hs-item-icon"></i>
-        <span class="hs-item-label" data-en="Doctors" data-sw="Madaktari">Doctors</span>
-      </a>
-      <a href="?tab=billing" class="hs-item <?= $tab==='billing'?'active':'' ?>">
-        <i class="fa-solid fa-file-invoice-dollar hs-item-icon"></i>
-        <span class="hs-item-label">Billing</span>
-      </a>
-      <a href="?tab=reports" class="hs-item <?= $tab==='reports'?'active':'' ?>">
-        <i class="fa-solid fa-chart-line hs-item-icon"></i>
-        <span class="hs-item-label">Reports</span>
-      </a>
-    </div>
-
-    <div class="hs-section">
-      <span class="hs-sect-lbl">Account</span>
-      <a href="?tab=settings" class="hs-item <?= $tab==='settings'?'active':'' ?>">
-        <i class="fa-solid fa-gear hs-item-icon"></i>
-        <span class="hs-item-label" data-en="Settings &amp; Profile" data-sw="Mipangilio &amp; Wasifu">Settings &amp; Profile</span>
-      </a>
-      <a href="/api/provider/logout.php" class="hs-item danger">
-        <i class="fa-solid fa-right-from-bracket hs-item-icon"></i>
-        <span class="hs-item-label">Log Out</span>
-      </a>
-    </div>
-  </nav>
-
-  <!-- Status card at bottom — from uploaded design -->
-  <div class="hs-stat-card">
-    <div class="hs-stat-title">Hospital Status</div>
-    <div class="hs-stat-row">
-      <i class="fa-solid fa-circle-check"></i>
-      <span class="hs-stat-row"><?= $pStatus === 'active' ? 'Operational' : ucfirst($pStatus) ?></span>
-    </div>
-    <div class="hs-stat-sub">Beds: <?= $occupiedBeds ?>/<?= $totalBeds ?> occupied</div>
+  <div class="cp-sidebar-footer">
+    <a href="mailto:support@planeazzy.co.ke" class="cp-nav-item">
+      <i class="fa-solid fa-headset" style="font-size:14px;width:16px;text-align:center"></i>
+      <span>Support</span>
+    </a>
+    <a href="/hospital/onboarding/logout.php" class="cp-nav-item" style="color:var(--cp-error)">
+      <i class="fa-solid fa-right-from-bracket" style="font-size:14px;width:16px;text-align:center"></i>
+      <span>Logout</span>
+    </a>
   </div>
 </aside>
 
-<!-- Mobile overlay -->
-<div id="hMobOv" class="h-mob-ov" onclick="closeHSidebar()"></div>
+<!--  MAIN  -->
+<div class="db-main" id="dbMain">
 
-<!-- ═══════════════════════════════════════════════════════════
-     MAIN CONTENT
-═══════════════════════════════════════════════════════════ -->
-<div class="h-main" id="hMain">
-
-  <!-- TOPBAR — matches uploaded design exactly -->
-  <header class="h-topbar">
-    <div class="ht-search">
-      <i class="fa-solid fa-magnifying-glass"></i>
-      <input type="text" id="hTopSearch" placeholder="Search patients, appointments…" value="<?= htmlspecialchars($searchQ) ?>">
-    </div>
-    <div class="ht-right">
-      <a href="?tab=appointments" class="ht-btn" title="Today's Appointments">
-        <i class="fa-solid fa-calendar-day"></i>
-        <?php if($todayCount > 0): ?><span class="ht-dot"></span><?php endif; ?>
-      </a>
-      <a href="?tab=billing" class="ht-btn" title="Billing">
-        <i class="fa-solid fa-file-invoice-dollar"></i>
-      </a>
-      <div class="ht-divider"></div>
-      <div class="ht-user">
-        <div class="ht-user-text">
-          <div class="ht-user-name"><?= $hName ?></div>
-          <div class="ht-user-role"><?= ucfirst($ptype) ?> · <?= ucfirst($pStatus) ?></div>
-        </div>
-        <div class="ht-av" onclick="location.href='?tab=settings'" title="Settings"><?= $initials ?></div>
+  <!-- TOPBAR -->
+  <header class="cp-dash-topbar">
+    <div style="display:flex;align-items:center;gap:10px;flex:1">
+      <button class="db-hamb" id="mobToggle"><i class="fa-solid fa-circle-info"></i></button>
+      <div class="cp-topbar-search">
+        <i class="fa-solid fa-circle-info"></i>
+        <input type="text" placeholder="Search patients, doctors…">
       </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <button class="cp-icon-btn" onclick="openModal('notifModal')">
+        <i class="fa-solid fa-circle-info"></i>
+        <?php if($unread>0):?><div class="notif-dot"></div><?php endif;?>
+      </button>
+      <a href="?tab=settings" class="cp-icon-btn"><i class="fa-solid fa-circle-info"></i></a>
+      <div style="width:1px;height:22px;background:rgba(193,198,213,.3);margin:0 2px"></div>
+      <a href="?tab=settings" class="db-avatar" title="Profile">
+        <?php if($logoPath):?>
+        <img src="<?=htmlspecialchars($logoPath)?>" alt="logo">
+        <?php else:?><?=htmlspecialchars($initials)?><?php endif;?>
+      </a>
     </div>
   </header>
 
-  <!-- PAGE CONTENT -->
-  <div class="h-page">
+  <!-- CONTENT -->
+  <div class="db-content">
 
-    <?php if ($pStatus === 'pending'): ?>
-    <div class="h-alert warn" style="margin-bottom:20px">
-      <i class="fa-solid fa-clock"></i>
-      <div><strong>Account Under Review</strong> — Your hospital profile is being verified. This typically takes 24–48 hours. Full features will unlock after approval.</div>
+  <!-- Page heading -->
+  <div style="margin-bottom:20px">
+    <h2 style="font-size:1.375rem;font-weight:800;letter-spacing:-.03em;color:var(--cp-on-surface);margin-bottom:5px">
+      <?=htmlspecialchars("$greetEn, $facilityName")?>
+    </h2>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="display:inline-flex;align-items:center;gap:4px;background:rgba(0,106,106,.08);padding:3px 10px;border-radius:9999px;font-size:.6rem;font-weight:700;color:var(--cp-secondary);text-transform:uppercase;letter-spacing:.06em">
+        <i class="fa-solid fa-circle-info"></i>KEPDA Verified
+      </span>
+      <span style="font-size:.75rem;color:var(--cp-on-surface-var);font-style:italic"><?=htmlspecialchars(ucfirst($hosp['facility_type']??'hospital'))?> · <?=htmlspecialchars($hosp['county']??'')?></span>
     </div>
-    <?php endif; ?>
+  </div>
 
-<!-- ──────────────────────────────────────────────────────────
-     TAB: OVERVIEW
-────────────────────────────────────────────────────────── -->
-<?php if ($tab === 'overview'): ?>
+<?php /*  OVERVIEW  */ if($tab==='overview'): ?>
 
-    <!-- Welcome banner — matches patient dashboard design from docs 2&3 -->
-    <div class="h-welcome">
-      <div>
-        <h2>Good <?= date('H') < 12 ? 'morning' : (date('H') < 17 ? 'afternoon' : 'evening') ?>, <?= explode(' ', $hName)[0] ?> 👋</h2>
-        <p>You have <strong><?= $todayCount ?></strong> appointment<?= $todayCount !== 1 ? 's' : '' ?> today and <strong><?= $upcomingCount ?></strong> scheduled upcoming.</p>
+  <div class="cp-stat-grid">
+    <?php foreach([
+      ["Today's","Appointments",$todayCount,'calendar_today','var(--cp-primary)','rgba(0,90,180,.08)'],
+      ['Pending','Bookings',$pendingCount,'pending_actions','#d97706','rgba(217,119,6,.08)'],
+      ['Total','Patients',number_format($patientCount),'people','var(--cp-secondary)','rgba(0,106,106,.08)'],
+      ['Doctors','On Duty',$docsOn.' / '.count($doctors),'medical_services','#7c3aed','rgba(124,58,237,.08)'],
+    ] as [$l1,$l2,$val,$ic,$col,$bg]):?>
+    <div class="cp-stat-card">
+      <div class="cp-stat-icon-wrap" style="background:<?=$bg?>"><span class="material-symbols-outlined" style="font-size:18px;color:<?=$col?>"><?=$ic?></span></div>
+      <div><div class="cp-stat-label"><?=$l1?></div><div style="font-size:.5rem;font-weight:600;color:var(--cp-outline);text-transform:uppercase;letter-spacing:.06em"><?=$l2?></div></div>
+      <div class="cp-stat-value"><?=$val?></div>
+    </div>
+    <?php endforeach;?>
+  </div>
+
+  <div class="db-bento-main">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <!-- Cert panel -->
+      <div class="db-panel">
+        <div style="font-size:.5625rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--cp-outline);margin-bottom:12px">Certification Status</div>
+        <?php foreach([['security','KDPA','Data Protection Active'],['gavel','KMPDC','Licensed Facility'],['health_and_safety','KEPDA','Data Authority Active']] as [$ic,$en,$sub]):?>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--cp-surface-container-low);border-radius:var(--cp-r);margin-bottom:7px">
+          <div style="display:flex;align-items:center;gap:9px">
+            <div style="width:30px;height:30px;border-radius:50%;background:rgba(0,90,180,.08);display:flex;align-items:center;justify-content:center"><span class="material-symbols-outlined" style="font-size:14px;color:var(--cp-primary)"><?=$ic?></span></div>
+            <div><div style="font-size:.8125rem;font-weight:700"><?=$en?></div><div style="font-size:.6875rem;color:var(--cp-on-surface-var)"><?=$sub?></div></div>
+          </div>
+          <i class="fa-solid fa-circle-info"></i>
+        </div>
+        <?php endforeach;?>
       </div>
-      <div class="h-welcome-btns">
-        <button class="hbtn hbtn-primary" onclick="hOpenModal('hBookModal')">
-          <i class="fa-solid fa-calendar-plus"></i> Book Appointment
-        </button>
-        <a href="?tab=patients" class="hbtn hbtn-ghost">
-          <i class="fa-solid fa-users"></i> View Patients
-        </a>
+      <!-- Pending bookings -->
+      <div class="db-panel" style="flex:1">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="font-size:.875rem;font-weight:700">Pending Bookings</div>
+          <?php if($pendingCount>0):?><span style="background:var(--cp-primary);color:#fff;font-size:.5rem;padding:2px 7px;border-radius:9999px;font-weight:800"><?=$pendingCount?> NEW</span><?php endif;?>
+        </div>
+        <?php $pending=array_slice(array_filter($apptRows,fn($a)=>$a['status']==='pending'),0,4);
+        if(empty($pending)):?>
+        <div style="text-align:center;padding:24px;color:var(--cp-outline)">
+          <i class="fa-solid fa-circle-info"></i>
+          <span style="font-size:.8125rem">No pending bookings</span>
+        </div>
+        <?php else: foreach($pending as $a):
+          $init=strtoupper(substr(preg_replace('/[^A-Za-z ]/','',$a['patient_name']),0,1).(strpos($a['patient_name'],' ')!==false?substr($a['patient_name'],strrpos($a['patient_name'],' ')+1,1):''));
+        ?>
+        <div class="db-booking-row" onclick="location.href='?tab=appointments'">
+          <div class="cp-booking-avatar"><?=htmlspecialchars($init)?></div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;justify-content:space-between;margin-bottom:2px">
+              <span style="font-size:.8125rem;font-weight:700"><?=htmlspecialchars($a['patient_name'])?></span>
+              <span style="font-size:.6875rem;color:var(--cp-outline)"><?=date('M d, g:i A',strtotime($a['appointment_at']))?></span>
+            </div>
+            <div style="font-size:.75rem;color:var(--cp-on-surface-var)"><?=htmlspecialchars($a['visit_type']??'in-person')?> · <?=htmlspecialchars($a['department']??'General')?></div>
+          </div>
+        </div>
+        <?php endforeach;endif;?>
+        <a href="?tab=appointments" style="display:block;text-align:center;font-size:.75rem;font-weight:700;color:var(--cp-primary);padding:10px;margin-top:6px;border-top:1px solid rgba(193,198,213,.12)">View All Appointments →</a>
       </div>
     </div>
 
-    <!-- Stat cards -->
-    <div class="h-stats-row">
-      <div class="h-stat">
-        <div class="h-stat-ic blue"><i class="fa-solid fa-calendar-check"></i></div>
+    <!-- Chart -->
+    <div class="db-panel">
+      <div style="margin-bottom:18px">
+        <h3 style="font-size:1rem;font-weight:700;margin-bottom:2px">Appointment Volume</h3>
+        <p style="font-size:.75rem;color:var(--cp-on-surface-var)">Monthly activity — last 12 months</p>
+      </div>
+      <?php
+      $chartData=[];
+      for($m=11;$m>=0;$m--){
+        $lbl=date('M',strtotime("-$m months"));
+        $cnt=$db->fetchOne('SELECT COUNT(*) c FROM hospital_appointments WHERE hospital_id=:h AND DATE_FORMAT(appointment_at,\'%Y-%m\')=DATE_FORMAT(DATE_SUB(CURDATE(),INTERVAL :m MONTH),\'%Y-%m\')',[':h'=>$hid,':m'=>$m])['c']??0;
+        $chartData[]=['label'=>$lbl,'val'=>(int)$cnt];
+      }
+      $chartMax=max(1,max(array_column($chartData,'val')));
+      ?>
+      <div class="cp-chart-wrap">
+        <div class="cp-chart-grid"><?php for($i=0;$i<5;$i++) echo '<div class="cp-chart-grid-line"></div>';?></div>
+        <?php foreach($chartData as $i=>$cd):$pct=round($cd['val']/$chartMax*100);$active=$i===11;?>
+        <div class="cp-bar-col">
+          <div class="cp-bar <?=$active?'active':''?>" style="height:<?=max($pct,2)?>%" title="<?=$cd['val']?> appointments"></div>
+          <div class="cp-bar-label"><?=$cd['label']?></div>
+        </div>
+        <?php endforeach;?>
+      </div>
+      <div style="display:flex;gap:24px;margin-top:16px;padding-top:14px;border-top:1px solid rgba(193,198,213,.12);flex-wrap:wrap">
+        <?php foreach([['Patients','var(--cp-on-surface)',number_format($patientCount)],['Total Appts','var(--cp-secondary)',count($apptRows)],['Doctors','var(--cp-primary)',count($doctors)]] as [$lbl,$col,$val]):?>
         <div>
-          <div class="h-stat-val" data-hcount="<?= $upcomingCount ?>"><?= $upcomingCount ?></div>
-          <div class="h-stat-lbl">Upcoming</div>
-          <div class="h-stat-delta up"><i class="fa-solid fa-arrow-trend-up"></i> <?= $todayCount ?> today</div>
+          <div style="font-size:.5rem;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:var(--cp-outline);margin-bottom:3px"><?=$lbl?></div>
+          <div style="font-size:1.25rem;font-weight:800;color:<?=$col?>;letter-spacing:-.04em"><?=$val?></div>
         </div>
+        <?php endforeach;?>
       </div>
-      <div class="h-stat">
-        <div class="h-stat-ic teal"><i class="fa-solid fa-users"></i></div>
-        <div>
-          <div class="h-stat-val" data-hcount="<?= $totalPatients ?>"><?= $totalPatients ?></div>
-          <div class="h-stat-lbl">Total Patients</div>
-          <div class="h-stat-delta up"><i class="fa-solid fa-arrow-trend-up"></i> This month</div>
-        </div>
+    </div>
+  </div>
+
+  <!-- Doctors on duty strip -->
+  <div class="db-panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="font-size:.875rem;font-weight:700">Doctors on Duty</div>
+      <a href="?tab=doctors" style="font-size:.75rem;font-weight:700;color:var(--cp-primary)">Manage All →</a>
+    </div>
+    <?php if(empty($doctors)):?>
+    <div style="text-align:center;padding:24px;color:var(--cp-outline)"><i class="fa-solid fa-circle-info"></i><span style="font-size:.8125rem">No doctors added yet. <a href="?tab=doctors" style="color:var(--cp-primary)">Add doctors →</a></span></div>
+    <?php else:?>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px">
+    <?php foreach(array_slice($doctors,0,6) as $doc):
+      $init=strtoupper(substr($doc['name'],0,1).(strpos($doc['name'],' ')!==false?substr($doc['name'],strrpos($doc['name'],' ')+1,1):''));
+      $dotCls=$doc['status']==='on-duty'?'dot-on':($doc['status']==='on-break'?'dot-break':($doc['status']==='suspended'?'dot-susp':'dot-off'));
+    ?>
+    <div class="cp-doc-card">
+      <div class="cp-doc-avatar">
+        <?php if(!empty($doc['avatar_path']??'')):?><img src="<?=htmlspecialchars($doc['avatar_path']??'')?>" alt=""><?php else:?><?=htmlspecialchars($init)?><?php endif;?>
       </div>
-      <div class="h-stat">
-        <div class="h-stat-ic green"><i class="fa-solid fa-circle-check"></i></div>
-        <div>
-          <div class="h-stat-val" data-hcount="<?= $completedCount ?>"><?= $completedCount ?></div>
-          <div class="h-stat-lbl">Completed</div>
-          <div class="h-stat-delta up"><i class="fa-solid fa-check"></i> Total visits</div>
-        </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.8125rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Dr. <?=htmlspecialchars($doc['name'])?></div>
+        <div style="font-size:.6875rem;color:var(--cp-on-surface-var)"><?=htmlspecialchars($doc['specialty']??$doc['dept_name']??'General')?></div>
       </div>
-      <div class="h-stat">
-        <div class="h-stat-ic yellow"><i class="fa-solid fa-bed-pulse"></i></div>
-        <div>
-          <div class="h-stat-val" data-hcount="<?= $occupiedBeds ?>"><?= $occupiedBeds ?></div>
-          <div class="h-stat-lbl">Beds Occupied</div>
-          <div class="h-stat-delta <?= $occupiedBeds > $totalBeds * .85 ? 'dn' : 'up' ?>">
-            <i class="fa-solid fa-bed"></i> of <?= $totalBeds ?> total
-          </div>
+      <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+        <div class="cp-status-dot <?=$dotCls?>"></div>
+        <span style="font-size:.625rem;color:var(--cp-on-surface-var)"><?=ucwords(str_replace('-',' ',$doc['status']))?></span>
+      </div>
+    </div>
+    <?php endforeach;?>
+    </div>
+    <?php endif;?>
+  </div>
+
+<?php /*  APPOINTMENTS  */ elseif($tab==='appointments'): ?>
+  <div class="phd">
+    <div><div class="ph-title">All Appointments</div><div class="ph-sub">Manage patient bookings for <?=htmlspecialchars($facilityName)?></div></div>
+    <button class="cp-btn cp-btn-primary cp-btn-sm" onclick="openModal('addApptModal')"><i class="fa-solid fa-circle-info"></i> Add Appointment</button>
+  </div>
+  <div class="cp-tab-row">
+    <?php foreach([['all','All'],['pending','Pending'],['confirmed','Confirmed'],['completed','Completed'],['cancelled','Cancelled']] as [$v,$lb]):?>
+    <button class="cp-tab-btn <?=$v==='all'?'active':''?>" onclick="filterAppts('<?=$v?>',this)"><?=$lb?></button>
+    <?php endforeach;?>
+  </div>
+  <div class="db-panel" style="padding:0;overflow:hidden">
+    <div class="cp-table-wrap">
+      <table class="cp-table" id="apptTable">
+        <thead><tr><th>Patient</th><th>Date &amp; Time</th><th>Department</th><th>Type</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+        <?php if(empty($apptRows)):?>
+        <tr><td colspan="6" style="text-align:center;padding:48px;color:var(--cp-outline)"><i class="fa-solid fa-circle-info"></i>No appointments yet</td></tr>
+        <?php else: foreach($apptRows as $a):
+          $init=strtoupper(substr(preg_replace('/[^A-Za-z ]/','',$a['patient_name']),0,1).(strpos($a['patient_name'],' ')!==false?substr($a['patient_name'],strrpos($a['patient_name'],' ')+1,1):''));
+        ?>
+        <tr data-status="<?=htmlspecialchars($a['status'])?>">
+          <td><div style="display:flex;align-items:center;gap:9px">
+            <div class="cp-booking-avatar" style="width:30px;height:30px;font-size:.6rem;flex-shrink:0"><?=htmlspecialchars($init)?></div>
+            <div><div style="font-weight:600;font-size:.8125rem"><?=htmlspecialchars($a['patient_name'])?></div>
+            <div style="font-size:.6875rem;color:var(--cp-on-surface-var)"><?=htmlspecialchars($a['patient_phone']??'')?></div></div>
+          </div></td>
+          <td style="font-weight:600;font-size:.8125rem;color:var(--cp-primary);white-space:nowrap"><?=date('M d, Y g:i A',strtotime($a['appointment_at']))?></td>
+          <td style="font-size:.8125rem"><?=htmlspecialchars($a['department']??'General')?></td>
+          <td><span class="cp-badge cp-badge-primary" style="font-size:.5625rem"><?=htmlspecialchars(ucwords(str_replace('-',' ',$a['visit_type']??'in-person')))?></span></td>
+          <td><span class="cp-status-pill cp-status-<?=htmlspecialchars($a['status'])?>"><?=ucfirst($a['status'])?></span></td>
+          <td><div style="display:flex;gap:5px">
+            <?php if($a['status']==='pending'):?>
+            <button class="cp-btn cp-btn-sm" style="background:rgba(0,90,180,.08);color:var(--cp-primary);padding:4px 10px;font-size:.6875rem" onclick="confirmAppt(<?=$a['id']?>)">Confirm</button>
+            <button class="cp-btn cp-btn-sm" style="background:rgba(186,26,26,.08);color:var(--cp-error);padding:4px 10px;font-size:.6875rem" onclick="cancelAppt(<?=$a['id']?>)">Cancel</button>
+            <?php elseif($a['status']==='confirmed'):?>
+            <button class="cp-btn cp-btn-sm" style="background:rgba(0,106,106,.08);color:var(--cp-secondary);padding:4px 10px;font-size:.6875rem" onclick="completeAppt(<?=$a['id']?>)">Complete</button>
+            <?php endif;?>
+          </div></td>
+        </tr>
+        <?php endforeach;endif;?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+<?php /*  DOCTORS  */ elseif($tab==='doctors'): ?>
+  <div class="phd">
+    <div><div class="ph-title">Medical Staff</div><div class="ph-sub">Manage doctors, profiles, availability and status</div></div>
+    <button class="cp-btn cp-btn-primary cp-btn-sm" onclick="openModal('addDoctorModal')"><i class="fa-solid fa-circle-info"></i> Add Doctor</button>
+  </div>
+  <?php if(empty($doctors)):?>
+  <div class="db-panel" style="text-align:center;padding:56px 24px">
+    <i class="fa-solid fa-circle-info"></i>
+    <h3 style="font-size:1rem;font-weight:700;margin-bottom:8px">No doctors added yet</h3>
+    <p style="font-size:.875rem;color:var(--cp-on-surface-var);margin-bottom:16px">Add your medical staff to manage schedules and appointments.</p>
+    <button class="cp-btn cp-btn-primary" onclick="openModal('addDoctorModal')">Add First Doctor</button>
+  </div>
+  <?php else:?>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">
+  <?php foreach($doctors as $doc):
+    $init=strtoupper(substr($doc['name'],0,1).(strpos($doc['name'],' ')!==false?substr($doc['name'],strrpos($doc['name'],' ')+1,1):''));
+    $dotCls=$doc['status']==='on-duty'?'dot-on':($doc['status']==='on-break'?'dot-break':($doc['status']==='suspended'?'dot-susp':'dot-off'));
+    $avail=!empty($doc['availability']??'')?json_decode($doc['availability']??'[]',true):[];
+    $availDays=is_array($avail)?implode(', ',array_keys(array_filter($avail))):'';
+  ?>
+  <div class="db-panel" id="doc-card-<?=$doc['id']?>">
+    <!-- Avatar + identity -->
+    <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:14px">
+      <div style="position:relative">
+        <div class="cp-doc-avatar" style="width:52px;height:52px;font-size:.9rem" id="docav-<?=$doc['id']?>">
+          <?php if(!empty($doc['avatar_path']??'')):?><img src="<?=htmlspecialchars($doc['avatar_path']??'')?>" alt=""><?php else:?><?=htmlspecialchars($init)?><?php endif;?>
         </div>
+        <label style="position:absolute;bottom:-2px;right:-2px;width:20px;height:20px;border-radius:50%;background:var(--cp-primary);border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer" title="Change photo">
+          <input type="file" accept="image/*" style="display:none" onchange="uploadDocAvatar(<?=$doc['id']?>,this)">
+          <i class="fa-solid fa-circle-info"></i>
+        </label>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.9375rem;font-weight:700">Dr. <?=htmlspecialchars($doc['name'])?></div>
+        <div style="font-size:.75rem;color:var(--cp-on-surface-var)"><?=htmlspecialchars($doc['specialty']??'General')?></div>
+        <?php if($doc['kmpdc_licence']):?><div style="font-size:.6875rem;color:var(--cp-outline);margin-top:1px"><?=htmlspecialchars($doc['kmpdc_licence'])?></div><?php endif;?>
+        <?php if($doc['dept_name']):?><div style="font-size:.6875rem;background:rgba(0,106,106,.08);color:var(--cp-secondary);display:inline-block;padding:1px 7px;border-radius:9999px;font-weight:600;margin-top:3px"><?=htmlspecialchars($doc['dept_name'])?></div><?php endif;?>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+        <div class="cp-status-dot <?=$dotCls?>"></div>
+        <span style="font-size:.625rem;color:var(--cp-on-surface-var)"><?=ucwords(str_replace('-',' ',$doc['status']))?></span>
       </div>
     </div>
 
-    <!-- Main dashboard grid: 2/3 left + 1/3 right -->
-    <div class="h-dash-grid">
-
-      <!-- LEFT COLUMN -->
-      <div class="h-col-left">
-
-        <!-- Today's Appointments -->
-        <section>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-            <h3 style="font-size:16px;font-weight:700;color:var(--s900)">Upcoming Appointments</h3>
-            <a href="?tab=appointments" class="hc-action">View Calendar <i class="fa-solid fa-arrow-right"></i></a>
-          </div>
-          <?php if (empty($upcoming)): ?>
-          <div class="hc empty-state"><i class="fa-regular fa-calendar-xmark"></i><h3>No upcoming appointments</h3><p>Use the booking button to schedule patients.</p></div>
-          <?php else: foreach (array_slice($upcoming, 0, 4) as $a):
-            $d = strtotime($a['appointment_at']);
-            $isTele = ($a['location_type'] ?? '') === 'telehealth';
-            $patName = trim(($a['first_name'] ?? '') . ' ' . ($a['last_name'] ?? ''));
-          ?>
-          <div class="h-appt">
-            <div class="h-appt-ic <?= $isTele ? 'tele' : 'prsn' ?>">
-              <i class="fa-solid <?= $isTele ? 'fa-video' : 'fa-user-injured' ?>"></i>
-            </div>
-            <div class="h-appt-info">
-              <div class="h-appt-badges">
-                <span class="h-appt-badge <?= $isTele ? 'tele' : 'prsn' ?>"><?= $isTele ? 'Telehealth' : 'In-Person' ?></span>
-                <span class="h-appt-spec">· <?= htmlspecialchars($a['title'] ?? 'Appointment') ?></span>
-              </div>
-              <div class="h-appt-name"><?= htmlspecialchars($patName ?: 'Patient') ?></div>
-              <div class="h-appt-time"><?= date('M j, Y', $d) ?> · <?= date('g:i A', $d) ?></div>
-            </div>
-            <div class="h-appt-actions">
-              <button class="h-appt-icon-btn" onclick="hUpdateAppt(<?= $a['id'] ?>,'confirmed')" title="Confirm"><i class="fa-solid fa-check"></i></button>
-              <button class="h-appt-icon-btn" onclick="hUpdateAppt(<?= $a['id'] ?>,'cancelled')" title="Cancel"><i class="fa-solid fa-xmark"></i></button>
-              <button class="h-appt-icon-btn" onclick="location.href='?tab=appointments'" title="Details"><i class="fa-solid fa-eye"></i></button>
-            </div>
-          </div>
-          <?php endforeach; endif; ?>
-        </section>
-
-        <!-- Recent Patients -->
-        <div class="hc">
-          <div class="hc-head">
-            <div class="hc-title"><i class="fa-solid fa-users"></i> Recent Patients</div>
-            <a href="?tab=patients" class="hc-action">View all <i class="fa-solid fa-arrow-right"></i></a>
-          </div>
-          <div class="hc-body" style="padding:0 20px">
-            <?php if (empty($recentPatients)): ?>
-            <div class="empty-state"><i class="fa-solid fa-users" style="font-size:32px;color:var(--s200)"></i><p style="font-size:13px;color:var(--s400);margin-top:12px">No patients yet.</p></div>
-            <?php else: foreach (array_slice($recentPatients, 0, 5) as $p):
-              $patName = trim(($p['first_name'] ?? '') . ' ' . ($p['last_name'] ?? ''));
-              $pInit   = strtoupper(substr($patName ?: 'P', 0, 2));
-              $lastDate = date('M j', strtotime($p['appointment_at']));
-            ?>
-            <div class="h-pat-row">
-              <div class="h-pat-info">
-                <div class="h-pat-av"><?= $pInit ?></div>
-                <div>
-                  <div class="h-pat-name"><?= htmlspecialchars($patName ?: 'Patient') ?></div>
-                  <div class="h-pat-meta"><i class="fa-regular fa-clock"></i> Last visit: <?= $lastDate ?> · <?= htmlspecialchars($p['title'] ?? 'Appointment') ?></div>
-                </div>
-              </div>
-              <div style="display:flex;gap:6px;align-items:center">
-                <?= statusPill($p['status']) ?>
-                <button class="hbtn hbtn-ghost hbtn-sm" onclick="hOpenModal('hBookModal')"><i class="fa-solid fa-calendar-plus"></i></button>
-              </div>
-            </div>
-            <?php endforeach; endif; ?>
-          </div>
-        </div>
-
-        <!-- Bed Status overview -->
-        <div class="hc">
-          <div class="hc-head">
-            <div class="hc-title"><i class="fa-solid fa-bed-pulse"></i> Bed Occupancy</div>
-            <span class="h-pill <?= $occupiedBeds > $totalBeds * .85 ? 'red' : 'green' ?>"><?= round($occupiedBeds / max(1, $totalBeds) * 100) ?>% full</span>
-          </div>
-          <div class="hc-body">
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
-              <?php foreach (['General Ward' => [28,35], 'ICU' => [8,10], 'Maternity' => [12,16], 'Pediatric' => [7,10]] as $ward => [$occ,$tot]): ?>
-              <div style="background:var(--s50);border-radius:var(--r-lg);padding:14px;text-align:center;border:1px solid var(--s100)">
-                <div style="font-size:20px;font-weight:800;color:var(--s900)"><?= $occ ?>/<?= $tot ?></div>
-                <div style="font-size:11px;color:var(--s500);margin-top:3px"><?= $ward ?></div>
-                <div style="height:4px;background:var(--s200);border-radius:9999px;margin-top:8px;overflow:hidden">
-                  <div style="height:100%;width:<?= round($occ/$tot*100) ?>%;background:<?= $occ/$tot > .85 ? 'var(--hr)' : 'var(--hp)' ?>;border-radius:9999px"></div>
-                </div>
-              </div>
-              <?php endforeach; ?>
-            </div>
-            <canvas id="bedSpark" width="100%" height="40" style="width:100%;opacity:.7"></canvas>
-          </div>
-        </div>
-
-      </div><!-- /.h-col-left -->
-
-      <!-- RIGHT COLUMN -->
-      <div class="h-col-right">
-
-        <!-- Doctor on Duty -->
-        <div class="hc">
-          <div class="hc-head">
-            <div class="hc-title"><i class="fa-solid fa-user-doctor"></i> Doctors On Duty</div>
-            <a href="?tab=doctors" class="hc-action">View all <i class="fa-solid fa-arrow-right"></i></a>
-          </div>
-          <div class="hc-body" style="padding:0 20px">
-            <?php if (empty($allDocs)): ?>
-            <div style="text-align:center;padding:24px;color:var(--s400);font-size:13px" data-en="No doctors linked yet." data-sw="Hakuna madaktari waliounganishwa bado.">No doctors linked yet.</div>
-            <?php else: foreach (array_slice($allDocs, 0, 4) as $doc): ?>
-            <div class="h-doc-row">
-              <div class="h-doc-info">
-                <div class="h-doc-av"><?= strtoupper(substr($doc['name'] ?? 'D', 0, 2)) ?></div>
-                <div>
-                  <div class="h-doc-name"><?= htmlspecialchars($doc['name']) ?></div>
-                  <div class="h-doc-spec"><?= htmlspecialchars($doc['specialty'] ?? 'Specialist') ?></div>
-                  <div class="h-doc-online"><span class="h-doc-dot"></span> On Duty</div>
-                </div>
-              </div>
-              <button class="hbtn hbtn-outline hbtn-sm" onclick="hOpenModal('hBookModal')" title="Book with this doctor">
-                <i class="fa-solid fa-calendar-plus"></i>
-              </button>
-            </div>
-            <?php endforeach; endif; ?>
-            <button class="hbtn hbtn-ghost hbtn-full mt2" onclick="location.href='?tab=doctors'">
-              <i class="fa-solid fa-user-plus"></i> Manage Doctors
-            </button>
-          </div>
-        </div>
-
-        <!-- Quick Stats -->
-        <div class="hc">
-          <div class="hc-head"><div class="hc-title"><i class="fa-solid fa-chart-pie"></i> Quick Stats</div></div>
-          <div class="hc-body">
-            <?php foreach ([
-              ['Monthly Revenue',  'KES ' . number_format($monthlyRev), 'green',  'fa-coins'],
-              ['Avg. Wait Time',   '18 min',                            'blue',   'fa-clock'],
-              ['Patient Sat.',     '94.2%',                             'teal',   'fa-star'],
-              ['Cancelled Rate',   count($cancelled) . ' this month',  count($cancelled) > 5 ? 'red' : 'gray', 'fa-xmark'],
-            ] as [$lbl, $val, $cls, $ic]): ?>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--s100)">
-              <div style="display:flex;align-items:center;gap:9px">
-                <div style="width:30px;height:30px;border-radius:8px;background:var(--<?= $cls ?>-10, var(--hp-10));color:var(--h<?= $cls === 'gray' ? 'p' : substr($cls,0,1) ?>);display:flex;align-items:center;justify-content:center;font-size:13px">
-                  <i class="fa-solid <?= $ic ?>"></i>
-                </div>
-                <span style="font-size:13px;color:var(--s600)"><?= $lbl ?></span>
-              </div>
-              <span style="font-size:14px;font-weight:700;color:var(--s900)"><?= $val ?></span>
-            </div>
-            <?php endforeach; ?>
-            <canvas id="apptSpark" width="100%" height="36" style="width:100%;margin-top:12px;opacity:.8"></canvas>
-          </div>
-        </div>
-
-        <!-- Hospital Info card -->
-        <div class="hc">
-          <div class="hc-head"><div class="hc-title"><i class="fa-solid fa-hospital"></i> Hospital Info</div><a href="?tab=settings" class="hc-action">Edit</a></div>
-          <div class="hc-body">
-            <?php foreach ([
-              ['fa-map-marker-alt', htmlspecialchars($prov['address'] ?? 'Nairobi, Kenya')],
-              ['fa-phone',          htmlspecialchars($prov['phone'] ?? '—')],
-              ['fa-envelope',       htmlspecialchars($prov['email'] ?? '—')],
-              ['fa-globe',          htmlspecialchars($prov['website'] ?? '—')],
-              ['fa-certificate',    htmlspecialchars($prov['license_number'] ?? '—')],
-            ] as [$ic, $val]): ?>
-            <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--s100)">
-              <i class="fa-solid <?= $ic ?>" style="color:var(--s400);font-size:13px;width:16px;text-align:center;flex-shrink:0"></i>
-              <span style="font-size:13px;color:var(--s600)"><?= $val ?></span>
-            </div>
-            <?php endforeach; ?>
-            <div style="display:flex;align-items:center;gap:8px;margin-top:12px">
-              <span class="h-pill <?= $pStatus==='active'?'green':'yellow' ?>">
-                <i class="fa-solid fa-<?= $pStatus==='active'?'circle-check':'clock' ?>"></i>
-                <?= ucfirst($pStatus) ?>
-              </span>
-              <span class="h-pill <?= in_array($ptype,['hospital','clinic'])?'blue':'gray' ?>"><?= ucfirst($ptype) ?></span>
-            </div>
-          </div>
-        </div>
-
-      </div><!-- /.h-col-right -->
-    </div>
-
-<?php elseif ($tab === 'appointments'): ?>
-<!-- ──────────────────────────────────────────────────────────
-     TAB: APPOINTMENTS
-────────────────────────────────────────────────────────── -->
-    <div class="h-pg-row">
-      <div class="h-pg-head" style="margin-bottom:0">
-        <div class="h-pg-title">Appointments</div>
-        <div class="h-pg-sub">Manage all patient appointments at <?= $hName ?></div>
+    <!-- Quick details -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px">
+      <?php if($doc['years_exp']):?>
+      <div style="font-size:.6875rem;background:var(--cp-surface-container-low);border-radius:6px;padding:5px 8px">
+        <div style="color:var(--cp-outline);font-size:.5625rem;font-weight:700;text-transform:uppercase">Experience</div>
+        <div style="font-weight:700"><?=$doc['years_exp']?> yr<?=($doc['years_exp']??0)>1?'s':''?></div>
       </div>
-      <button class="hbtn hbtn-primary" onclick="hOpenModal('hBookModal')">
-        <i class="fa-solid fa-calendar-plus"></i> New Appointment
-      </button>
-    </div>
-
-    <!-- Tabs -->
-    <div class="h-tab-bar">
-      <?php $af = $_GET['af'] ?? 'upcoming'; ?>
-      <button class="h-tab <?= $af==='upcoming'?'active':'' ?>" onclick="setApptTab('upcoming')">Upcoming (<?= count($upcoming) ?>)</button>
-      <button class="h-tab <?= $af==='today'?'active':'' ?>"    onclick="setApptTab('today')">Today (<?= count($today) ?>)</button>
-      <button class="h-tab <?= $af==='completed'?'active':'' ?>" onclick="setApptTab('completed')">Completed (<?= count($completed) ?>)</button>
-      <button class="h-tab <?= $af==='cancelled'?'active':'' ?>" onclick="setApptTab('cancelled')">Cancelled (<?= count($cancelled) ?>)</button>
-      <button class="h-tab <?= $af==='all'?'active':'' ?>"      onclick="setApptTab('all')">All (<?= count($allAppts) ?>)</button>
-    </div>
-
-    <!-- Search & Filter -->
-    <div class="h-filter-bar">
-      <div class="h-input-wrap" style="flex:1;max-width:320px">
-        <i class="fa-solid fa-magnifying-glass h-input-ico"></i>
-        <input type="text" id="apptSearch" class="h-input has-ico" placeholder="Search patient name…">
+      <?php endif;?>
+      <?php if(($doc['consult_fee']??0)>0):?>
+      <div style="font-size:.6875rem;background:var(--cp-surface-container-low);border-radius:6px;padding:5px 8px">
+        <div style="color:var(--cp-outline);font-size:.5625rem;font-weight:700;text-transform:uppercase">Consult Fee</div>
+        <div style="font-weight:700">KES <?=number_format($doc['consult_fee']??0,0)?></div>
       </div>
-      <select class="h-select" style="max-width:180px" id="apptStatusFilter">
-        <option value="">All statuses</option>
-        <option value="scheduled">Scheduled</option>
-        <option value="confirmed">Confirmed</option>
-        <option value="completed">Completed</option>
-        <option value="cancelled">Cancelled</option>
+      <?php endif;?>
+      <?php if($doc['languages']):?>
+      <div style="font-size:.6875rem;background:var(--cp-surface-container-low);border-radius:6px;padding:5px 8px">
+        <div style="color:var(--cp-outline);font-size:.5625rem;font-weight:700;text-transform:uppercase">Languages</div>
+        <div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><?=htmlspecialchars($doc['languages']??'')?></div>
+      </div>
+      <?php endif;?>
+      <?php if($doc['accepts_tele']):?>
+      <div style="font-size:.6875rem;background:rgba(0,90,180,.06);border-radius:6px;padding:5px 8px">
+        <div style="color:var(--cp-outline);font-size:.5625rem;font-weight:700;text-transform:uppercase">Tele-consult</div>
+        <div style="font-weight:700;color:var(--cp-primary)">Available</div>
+      </div>
+      <?php endif;?>
+    </div>
+
+    <?php if($availDays):?>
+    <div style="font-size:.6875rem;color:var(--cp-on-surface-var);margin-bottom:10px;padding:6px 10px;background:var(--cp-surface-container-low);border-radius:6px">
+      <i class="fa-solid fa-circle-info"></i>
+      Available: <?=htmlspecialchars(ucwords($availDays))?>
+    </div>
+    <?php endif;?>
+
+    <!-- Status + actions -->
+    <div style="display:flex;gap:7px">
+      <select class="cp-form-input" style="flex:1;padding:7px 10px;font-size:.75rem;cursor:pointer"
+              onchange="updateDoctorStatus(<?=$doc['id']?>,this.value)">
+        <?php foreach(['on-duty'=>'On Duty','off-duty'=>'Off Duty','on-break'=>'On Break','suspended'=>'Suspended'] as $sv=>$sl):?>
+        <option value="<?=$sv?>" <?=$doc['status']===$sv?'selected':''?>><?=$sl?></option>
+        <?php endforeach;?>
       </select>
+      <button class="cp-btn cp-btn-sm" style="background:rgba(0,90,180,.07);color:var(--cp-primary);padding:7px 12px" onclick="editDoctor(<?=$doc['id']?>)" title="Edit profile"><i class="fa-solid fa-circle-info"></i></button>
+      <button class="cp-btn cp-btn-sm" style="background:rgba(186,26,26,.07);color:var(--cp-error);padding:7px 12px" onclick="deleteDoctor(<?=$doc['id']?>,this)" title="Remove"><i class="fa-solid fa-circle-info"></i></button>
     </div>
+  </div>
+  <?php endforeach;?>
+  </div>
+  <?php endif;?>
 
+  <!-- Departments sub-section -->
+  <div style="margin-top:24px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h3 style="font-size:1rem;font-weight:700">Departments</h3>
+      <button class="cp-btn cp-btn-primary cp-btn-sm" onclick="openModal('addDeptModal')"><i class="fa-solid fa-circle-info"></i> Add</button>
+    </div>
+    <?php if(empty($depts)):?>
+    <div class="db-panel" style="text-align:center;padding:24px;color:var(--cp-outline);font-size:.8125rem">No departments yet.</div>
+    <?php else:?>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px">
+    <?php foreach($depts as $dept):?>
+    <div class="cp-dept-card" style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="cp-dept-icon"><span class="material-symbols-outlined" style="font-size:18px"><?=htmlspecialchars($dept['icon']??'stethoscope')?></span></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.875rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><?=htmlspecialchars($dept['name'])?></div>
+          <div style="font-size:.6875rem;color:var(--cp-on-surface-var)"><?=(int)($dept['capacity']??0)?> capacity</div>
+        </div>
+      </div>
+      <button class="cp-btn cp-btn-sm" style="background:rgba(186,26,26,.08);color:var(--cp-error);font-size:.6875rem;padding:5px 10px" onclick="deleteDept(<?=$dept['id']?>,this)">Remove</button>
+    </div>
+    <?php endforeach;?>
+    </div>
+    <?php endif;?>
+  </div>
+
+<?php /*  SERVICES  */ elseif($tab==='services'): ?>
+  <div class="phd"><div><div class="ph-title">Service Management</div><div class="ph-sub">Toggle the services your facility offers</div></div></div>
+  <div class="svc-grid-dash">
+  <?php foreach($serviceDefs as [$key,$label,$icon]):$active=in_array($key,$services);?>
+  <div class="db-panel" id="svc-<?=$key?>" style="opacity:<?=$active?1:.6?>;transition:opacity .2s">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+      <div style="width:38px;height:38px;border-radius:9px;background:<?=$active?'rgba(0,106,106,.1)':'var(--cp-surface-container-high)'?>;display:flex;align-items:center;justify-content:center;color:<?=$active?'var(--cp-secondary)':'var(--cp-outline)'?>">
+        <span class="material-symbols-outlined" style="font-size:18px"><?=$icon?></span>
+      </div>
+      <label style="position:relative;display:inline-flex;align-items:center;cursor:pointer">
+        <input type="checkbox" <?=$active?'checked':''?> onchange="toggleService('<?=$key?>',this.checked,this)" style="opacity:0;position:absolute;width:0;height:0">
+        <div id="tog-<?=$key?>" style="width:40px;height:22px;border-radius:9999px;background:<?=$active?'var(--cp-secondary)':'var(--cp-outline-var)'?>;position:relative;transition:background .2s">
+          <div id="togknob-<?=$key?>" style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:2px;left:<?=$active?'20px':'2px'?>;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div>
+        </div>
+      </label>
+    </div>
+    <div style="font-size:.875rem;font-weight:700;margin-bottom:2px"><?=htmlspecialchars($label)?></div>
+    <div style="font-size:.6875rem;color:var(--cp-on-surface-var)" id="svc-status-<?=$key?>"><?=$active?'Active':'Inactive'?></div>
+  </div>
+  <?php endforeach;?>
+  </div>
+
+<?php /*  INSURANCE  */ elseif($tab==='insurance'): ?>
+  <div class="phd"><div><div class="ph-title">Insurance Partners</div><div class="ph-sub">Connect the insurance schemes your facility accepts</div></div></div>
+  <div class="ins-grid">
+  <?php foreach($insurerDefs as [$key,$name,$full,$icon,$color]):
+    $rec=$insMap[$key]??null;$status=$rec['status']??'disconnected';$isConn=$status==='connected';
+  ?>
+  <div class="cp-ins-card" id="ins-<?=$key?>">
+    <div class="cp-ins-icon-wrap"><span class="material-symbols-outlined" style="color:<?=$color?>"><?=$icon?></span></div>
+    <div style="flex:1">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+        <div><div style="font-size:.9375rem;font-weight:700"><?=htmlspecialchars($name)?></div><div style="font-size:.75rem;color:var(--cp-on-surface-var)"><?=htmlspecialchars($full)?></div></div>
+        <span class="cp-badge <?=$isConn?'cp-badge-success':'cp-badge-warning'?>" id="ins-status-<?=$key?>"><?=ucfirst($status)?></span>
+      </div>
+      <?php if($rec&&$rec['policy_ref']):?><div style="font-size:.6875rem;color:var(--cp-on-surface-var);margin-bottom:4px">Ref: <?=htmlspecialchars($rec['policy_ref'])?></div><?php endif;?>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <?php if(!$isConn):?>
+        <button class="cp-btn cp-btn-sm" style="background:rgba(0,90,180,.08);color:var(--cp-primary);font-size:.6875rem" onclick="connectIns('<?=$key?>','<?=htmlspecialchars($name)?>','<?=htmlspecialchars($full)?>')"><i class="fa-solid fa-circle-info"></i> Connect</button>
+        <?php else:?>
+        <button class="cp-btn cp-btn-sm" style="background:rgba(22,163,74,.08);color:#16a34a;font-size:.6875rem" disabled><i class="fa-solid fa-circle-info"></i> Connected</button>
+        <button class="cp-btn cp-btn-sm" style="background:rgba(186,26,26,.08);color:var(--cp-error);font-size:.6875rem" onclick="disconnectIns('<?=$key?>')">Disconnect</button>
+        <?php endif;?>
+      </div>
+    </div>
+  </div>
+  <?php endforeach;?>
+  </div>
+
+<?php /*  ANALYTICS  */ elseif($tab==='analytics'): ?>
+  <div class="phd"><div class="ph-title">Analytics</div></div>
+  <div class="cp-stat-grid" style="margin-bottom:16px">
+    <?php foreach([['Total Patients',$patientCount,'people'],['Total Appointments',count($apptRows),'calendar_today'],['Active Doctors',count($doctors),'medical_services'],['Departments',count($depts),'category']] as [$en,$val,$ic]):?>
+    <div class="cp-stat-card"><div class="cp-stat-label"><?=$en?></div><div class="cp-stat-value" style="font-size:1.5rem"><?=$val?></div></div>
+    <?php endforeach;?>
+  </div>
+  <!-- 12-month chart -->
+  <div class="db-panel" style="margin-bottom:16px">
+    <h3 style="font-size:.9375rem;font-weight:700;margin-bottom:16px">Appointment Volume — Last 12 Months</h3>
+    <?php $anData=[];
+    for($m=11;$m>=0;$m--){
+      $lbl=date('M',strtotime("-$m months"));
+      $cnt=$db->fetchOne('SELECT COUNT(*) c FROM hospital_appointments WHERE hospital_id=:h AND DATE_FORMAT(appointment_at,\'%Y-%m\')=DATE_FORMAT(DATE_SUB(CURDATE(),INTERVAL :m MONTH),\'%Y-%m\')',[':h'=>$hid,':m'=>$m])['c']??0;
+      $anData[]=['label'=>$lbl,'val'=>(int)$cnt];
+    }$anMax=max(1,max(array_column($anData,'val')));?>
+    <div class="cp-chart-wrap" style="height:160px">
+      <div class="cp-chart-grid"><?php for($i=0;$i<4;$i++) echo '<div class="cp-chart-grid-line"></div>';?></div>
+      <?php foreach($anData as $cd):$pct=round($cd['val']/$anMax*100);?>
+      <div class="cp-bar-col"><div class="cp-bar active" style="height:<?=max($pct,2)?>%;background:rgba(0,90,180,.35)" title="<?=$cd['val']?>"></div><div class="cp-bar-label"><?=$cd['label']?></div></div>
+      <?php endforeach;?>
+    </div>
+  </div>
+  <!-- Breakdowns -->
+  <div class="db-bento-bottom">
     <?php
-    $show = match($af) {
-        'today'     => $today,
-        'completed' => $completed,
-        'cancelled' => $cancelled,
-        'all'       => $allAppts,
-        default     => $upcoming,
-    };
+    $statusBreak=$db->fetchAll('SELECT status,COUNT(*) c FROM hospital_appointments WHERE hospital_id=:h GROUP BY status',[':h'=>$hid]);
+    $stTotal=max(1,array_sum(array_column($statusBreak,'c')));
     ?>
-
-    <div class="h-table-wrap">
-      <table class="h-table" id="apptTable">
-        <thead>
-          <tr>
-            <th>Patient</th>
-            <th>Date &amp; Time</th>
-            <th>Type</th>
-            <th>Service</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php if (empty($show)): ?>
-          <tr><td colspan="6" class="h-table-empty"><i class="fa-regular fa-calendar-xmark" style="font-size:32px;color:var(--s200);display:block;margin-bottom:10px"></i data-en="No appointments found." data-sw="Hakuna miadi iliyopatikana.">No appointments found.</td></tr>
-          <?php else: foreach ($show as $a):
-            $d = strtotime($a['appointment_at']);
-            $patName = trim(($a['first_name'] ?? '') . ' ' . ($a['last_name'] ?? ''));
-            $pInit   = strtoupper(substr($patName ?: 'P', 0, 2));
-          ?>
-          <tr>
-            <td>
-              <div style="display:flex;align-items:center;gap:9px">
-                <div class="h-pat-av" style="width:33px;height:33px;font-size:11px"><?= $pInit ?></div>
-                <div>
-                  <strong><?= htmlspecialchars($patName ?: 'Patient') ?></strong>
-                  <div style="font-size:11px;color:var(--s400)"><?= htmlspecialchars($a['pat_phone'] ?? '') ?></div>
-                </div>
-              </div>
-            </td>
-            <td><?= date('M j, Y', $d) ?><br><span style="font-size:11px;color:var(--s400)"><?= date('g:i A', $d) ?></span></td>
-            <td><?= locPill($a['location_type'] ?? 'in_person') ?></td>
-            <td><?= htmlspecialchars($a['title'] ?? 'Appointment') ?></td>
-            <td><?= statusPill($a['status']) ?></td>
-            <td>
-              <div class="td-actions">
-                <?php if ($a['status'] === 'scheduled'): ?>
-                <button class="hbtn hbtn-success hbtn-sm" onclick="hUpdateAppt(<?= $a['id'] ?>,'confirmed')" title="Confirm">Confirm</button>
-                <button class="hbtn hbtn-ghost hbtn-sm" onclick="hUpdateAppt(<?= $a['id'] ?>,'completed')" title="Mark done"><i class="fa-solid fa-check"></i></button>
-                <button class="hbtn hbtn-ghost hbtn-sm" style="color:var(--hr)" onclick="hUpdateAppt(<?= $a['id'] ?>,'cancelled')"><i class="fa-solid fa-xmark"></i></button>
-                <?php elseif ($a['status'] === 'confirmed'): ?>
-                <button class="hbtn hbtn-success hbtn-sm" onclick="hUpdateAppt(<?= $a['id'] ?>,'completed')">Complete</button>
-                <button class="hbtn hbtn-ghost hbtn-sm" style="color:var(--hr)" onclick="hUpdateAppt(<?= $a['id'] ?>,'cancelled')"><i class="fa-solid fa-xmark"></i></button>
-                <?php endif; ?>
-              </div>
-            </td>
-          </tr>
-          <?php endforeach; endif; ?>
-        </tbody>
-      </table>
-    </div>
-
-<?php elseif ($tab === 'patients'): ?>
-<!-- ──────────────────────────────────────────────────────────
-     TAB: PATIENTS
-────────────────────────────────────────────────────────── -->
-    <div class="h-pg-row">
-      <div class="h-pg-head" style="margin-bottom:0">
-        <div class="h-pg-title">Patient Registry</div>
-        <div class="h-pg-sub"><?= $totalPatients ?> unique patients have visited <?= $hName ?></div>
+    <div class="db-panel">
+      <div style="font-size:.875rem;font-weight:700;margin-bottom:14px">Appointment Status</div>
+      <?php if(empty($statusBreak)):?><div style="font-size:.8125rem;color:var(--cp-outline);text-align:center;padding:16px">No data yet</div>
+      <?php else: foreach($statusBreak as $r):$pct=round($r['c']/$stTotal*100);?>
+      <div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:.75rem;font-weight:500;text-transform:capitalize"><?=$r['status']?></span><span style="font-size:.6875rem;color:var(--cp-on-surface-var)"><?=$r['c']?> (<?=$pct?>%)</span></div>
+        <div class="cp-bed-track"><div class="cp-bed-fill" style="width:<?=$pct?>%"></div></div>
       </div>
-      <button class="hbtn hbtn-primary" onclick="hOpenModal('hBookModal')">
-        <i class="fa-solid fa-user-plus"></i> Book a Patient
-      </button>
+      <?php endforeach;endif;?>
     </div>
-
-    <!-- Quick stats row -->
-    <div class="h-stats-row" style="margin-bottom:20px">
-      <div class="h-stat">
-        <div class="h-stat-ic blue"><i class="fa-solid fa-users"></i></div>
-        <div><div class="h-stat-val"><?= $totalPatients ?></div><div class="h-stat-lbl">Total Patients</div></div>
+    <div class="db-panel">
+      <div style="font-size:.875rem;font-weight:700;margin-bottom:14px">Visit Types</div>
+      <?php $vtBreak=$db->fetchAll('SELECT visit_type,COUNT(*) c FROM hospital_appointments WHERE hospital_id=:h GROUP BY visit_type',[':h'=>$hid]);
+      $vtTotal=max(1,array_sum(array_column($vtBreak,'c')));
+      if(empty($vtBreak)):?><div style="font-size:.8125rem;color:var(--cp-outline);text-align:center;padding:16px">No data yet</div>
+      <?php else: foreach($vtBreak as $r):$pct=round($r['c']/$vtTotal*100);?>
+      <div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:.75rem;font-weight:500;text-transform:capitalize"><?=htmlspecialchars(str_replace('-',' ',$r['visit_type']??''))?></span><span style="font-size:.6875rem;color:var(--cp-on-surface-var)"><?=$r['c']?> (<?=$pct?>%)</span></div>
+        <div class="cp-bed-track"><div class="cp-bed-fill" style="width:<?=$pct?>%;background:var(--cp-secondary)"></div></div>
       </div>
-      <div class="h-stat">
-        <div class="h-stat-ic green"><i class="fa-solid fa-user-check"></i></div>
-        <div><div class="h-stat-val"><?= count(array_filter($recentPatients, fn($p) => date('Y-m', strtotime($p['appointment_at'])) === date('Y-m'))) ?></div><div class="h-stat-lbl">This Month</div></div>
-      </div>
-      <div class="h-stat">
-        <div class="h-stat-ic teal"><i class="fa-solid fa-video"></i></div>
-        <div><div class="h-stat-val"><?= count(array_filter($allAppts, fn($a) => ($a['location_type']??'') === 'telehealth')) ?></div><div class="h-stat-lbl">Telehealth</div></div>
-      </div>
-      <div class="h-stat">
-        <div class="h-stat-ic yellow"><i class="fa-solid fa-repeat"></i></div>
-        <div><div class="h-stat-val"><?= count(array_filter($recentPatients, fn($p) => count(array_filter($allAppts, fn($a) => $a['patient_id'] == $p['patient_id'])) > 1)) ?></div><div class="h-stat-lbl">Returning</div></div>
-      </div>
+      <?php endforeach;endif;?>
     </div>
-
-    <!-- Search -->
-    <div class="h-filter-bar">
-      <div class="h-input-wrap" style="flex:1;max-width:360px">
-        <i class="fa-solid fa-magnifying-glass h-input-ico"></i>
-        <input type="text" id="patSearch" class="h-input has-ico" placeholder="Search by name, phone…" value="<?= $searchQ ?>">
+    <div class="db-panel">
+      <div style="font-size:.875rem;font-weight:700;margin-bottom:14px">Doctors by Department</div>
+      <?php foreach($depts as $dept):
+        $dcnt=count(array_filter($doctors,fn($d)=>$d['department_id']==$dept['id']));
+        if(!$dcnt) continue;
+      ?>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(193,198,213,.12)">
+        <span style="font-size:.8125rem"><?=htmlspecialchars($dept['name'])?></span>
+        <span style="font-weight:700;color:var(--cp-primary);font-size:.875rem"><?=$dcnt?></span>
       </div>
+      <?php endforeach;?>
+      <?php if(empty($depts)):?><div style="font-size:.8125rem;color:var(--cp-outline);text-align:center;padding:16px">Add departments first</div><?php endif;?>
     </div>
+  </div>
 
-    <!-- Patients table -->
-    <div class="h-table-wrap">
-      <table class="h-table" id="patTable">
-        <thead>
-          <tr>
-            <th>Patient</th>
-            <th>Phone</th>
-            <th>Last Visit</th>
-            <th>Service</th>
-            <th>Total Visits</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php
-          $patMap = [];
-          foreach ($allAppts as $a) {
-              $pid = $a['patient_id'];
-              if (!isset($patMap[$pid])) {
-                  $patMap[$pid] = [
-                      'name'    => trim(($a['first_name'] ?? '') . ' ' . ($a['last_name'] ?? '')),
-                      'phone'   => $a['pat_phone'] ?? '',
-                      'email'   => $a['pat_email'] ?? '',
-                      'last'    => $a['appointment_at'],
-                      'service' => $a['title'] ?? '',
-                      'status'  => $a['status'],
-                      'visits'  => 0,
-                  ];
-              }
-              $patMap[$pid]['visits']++;
-          }
-          if (empty($patMap)):
-          ?>
-          <tr><td colspan="7" class="h-table-empty"><i class="fa-solid fa-users" style="font-size:32px;color:var(--s200);display:block;margin-bottom:10px"></i data-en="No patients yet. Start booking appointments." data-sw="Hakuna wagonjwa bado. Anza kuweka miadi.">No patients yet. Start booking appointments.</td></tr>
-          <?php else: foreach ($patMap as $pid => $pat):
-            $pInit = strtoupper(substr($pat['name'] ?: 'P', 0, 2));
-          ?>
-          <tr>
-            <td>
-              <div style="display:flex;align-items:center;gap:9px">
-                <div class="h-pat-av" style="width:34px;height:34px;font-size:12px"><?= $pInit ?></div>
-                <div>
-                  <strong><?= htmlspecialchars($pat['name'] ?: 'Patient') ?></strong>
-                  <div style="font-size:11px;color:var(--s400)"><?= htmlspecialchars($pat['email']) ?></div>
-                </div>
-              </div>
-            </td>
-            <td><?= htmlspecialchars($pat['phone'] ?: '—') ?></td>
-            <td><?= date('M j, Y', strtotime($pat['last'])) ?></td>
-            <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><?= htmlspecialchars($pat['service']) ?></td>
-            <td><span class="h-pill blue"><?= $pat['visits'] ?> visit<?= $pat['visits']!==1?'s':'' ?></span></td>
-            <td><?= statusPill($pat['status']) ?></td>
-            <td>
-              <div class="td-actions">
-                <button class="hbtn hbtn-ghost hbtn-sm" onclick="hOpenModal('hBookModal')" title="Book again"><i class="fa-solid fa-calendar-plus"></i></button>
-                <button class="hbtn hbtn-ghost hbtn-sm" onclick="window.location.href='tel:<?= htmlspecialchars($pat['phone']) ?>'" title="Call"><i class="fa-solid fa-phone"></i></button>
-              </div>
-            </td>
-          </tr>
-          <?php endforeach; endif; ?>
-        </tbody>
-      </table>
-    </div>
-
-<?php elseif ($tab === 'doctors'): ?>
-<!-- ──────────────────────────────────────────────────────────
-     TAB: DOCTORS
-────────────────────────────────────────────────────────── -->
-    <div class="h-pg-row">
-      <div class="h-pg-head" style="margin-bottom:0">
-        <div class="h-pg-title">Medical Staff</div>
-        <div class="h-pg-sub">Doctors and specialists linked to <?= $hName ?></div>
-      </div>
-      <button class="hbtn hbtn-primary" onclick="hOpenModal('hInviteDocModal')">
-        <i class="fa-solid fa-user-doctor"></i> Invite Doctor
-      </button>
-    </div>
-
-    <!-- Doctor search -->
-    <div class="h-filter-bar">
-      <div class="h-input-wrap" style="flex:1;max-width:320px">
-        <i class="fa-solid fa-magnifying-glass h-input-ico"></i>
-        <input type="text" id="docSearch" class="h-input has-ico" placeholder="Search doctors…">
-      </div>
-      <?php foreach (['All','General Physician','Cardiologist','Pediatrician','Surgeon'] as $spec): ?>
-      <button class="h-filter-chip <?= ($_GET['spec']??'All')===$spec?'active':'' ?>" onclick="location.href='?tab=doctors&spec=<?= urlencode($spec) ?>'"><?= $spec ?></button>
-      <?php endforeach; ?>
-    </div>
-
-    <?php
-    $specFilter = $_GET['spec'] ?? 'All';
-    $filteredDocs = $specFilter === 'All' ? $allDocs : array_filter($allDocs, fn($d) => stripos($d['specialty'] ?? '', $specFilter) !== false);
-    ?>
-
-    <div class="h-table-wrap">
-      <table class="h-table" id="docTable">
-        <thead>
-          <tr>
-            <th>Doctor</th>
-            <th>Specialty</th>
-            <th>Contact</th>
-            <th>Rating</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php if (empty($filteredDocs)): ?>
-          <tr><td colspan="6" class="h-table-empty"><i class="fa-solid fa-user-doctor" style="font-size:32px;color:var(--s200);display:block;margin-bottom:10px"></i data-en="No doctors linked yet." data-sw="Hakuna madaktari waliounganishwa bado.">No doctors linked yet.</td></tr>
-          <?php else: foreach ($filteredDocs as $doc):
-            $dInit = strtoupper(substr($doc['name'] ?? 'D', 0, 2));
-          ?>
-          <tr>
-            <td>
-              <div style="display:flex;align-items:center;gap:10px">
-                <div class="h-doc-av" style="width:36px;height:36px;font-size:12px"><?= $dInit ?></div>
-                <div>
-                  <strong><?= htmlspecialchars($doc['name']) ?></strong>
-                  <div style="font-size:11px;color:var(--s400)"><?= htmlspecialchars($doc['license_number'] ?? '—') ?></div>
-                </div>
-              </div>
-            </td>
-            <td><?= htmlspecialchars($doc['specialty'] ?? '—') ?></td>
-            <td>
-              <div style="font-size:12px;color:var(--s500)"><?= htmlspecialchars($doc['phone'] ?? '') ?></div>
-              <div style="font-size:11px;color:var(--s400)"><?= htmlspecialchars($doc['email'] ?? '') ?></div>
-            </td>
-            <td>
-              <span style="display:flex;align-items:center;gap:4px;font-size:13px;font-weight:700;color:#f59e0b">
-                <i class="fa-solid fa-star"></i> <?= number_format($doc['rating'] ?? 0, 1) ?>
-              </span>
-              <span style="font-size:11px;color:var(--s400)"><?= ($doc['review_count'] ?? 0) ?> reviews</span>
-            </td>
-            <td>
-              <span class="h-pill <?= ($doc['is_available'] ?? 0) ? 'green' : 'gray' ?>">
-                <i class="fa-solid fa-circle" style="font-size:8px"></i>
-                <?= ($doc['is_available'] ?? 0) ? 'Available' : 'Offline' ?>
-              </span>
-            </td>
-            <td>
-              <div class="td-actions">
-                <button class="hbtn hbtn-ghost hbtn-sm" onclick="hOpenModal('hBookModal')" title="Book patient with doctor"><i class="fa-solid fa-calendar-plus"></i></button>
-                <a href="tel:<?= htmlspecialchars($doc['phone'] ?? '') ?>" class="hbtn hbtn-ghost hbtn-sm" title="Call"><i class="fa-solid fa-phone"></i></a>
-              </div>
-            </td>
-          </tr>
-          <?php endforeach; endif; ?>
-        </tbody>
-      </table>
-    </div>
-
-<?php elseif ($tab === 'billing'): ?>
-<!-- ──────────────────────────────────────────────────────────
-     TAB: BILLING
-────────────────────────────────────────────────────────── -->
-    <div class="h-pg-row">
-      <div class="h-pg-head" style="margin-bottom:0">
-        <div class="h-pg-title">Billing &amp; Revenue</div>
-        <div class="h-pg-sub">Financial overview for <?= $hName ?></div>
-      </div>
-      <button class="hbtn hbtn-primary" onclick="hOpenModal('hInvoiceModal')">
-        <i class="fa-solid fa-file-invoice"></i> Create Invoice
-      </button>
-    </div>
-
-    <!-- Revenue stats -->
-    <div class="h-stats-row" style="margin-bottom:20px">
-      <?php foreach ([
-        ['Monthly Revenue','KES '.number_format($monthlyRev),'green','fa-coins','+12% vs last month'],
-        ['Pending Invoices','KES '.number_format(48500),'yellow','fa-file-invoice','7 unpaid'],
-        ['Insurance Claims','KES '.number_format(225000),'blue','fa-shield','NHIF + Private'],
-        ['Avg. Bill / Patient','KES '.number_format((int)($monthlyRev/max(1,$totalPatients))),'teal','fa-receipt','Per visit'],
-      ] as [$lbl,$val,$cls,$ic,$sub]): ?>
-      <div class="h-stat">
-        <div class="h-stat-ic <?= $cls ?>"><i class="fa-solid <?= $ic ?>"></i></div>
-        <div>
-          <div class="h-stat-val" style="font-size:18px"><?= $val ?></div>
-          <div class="h-stat-lbl"><?= $lbl ?></div>
-          <div class="h-stat-delta up"><?= $sub ?></div>
+<?php /*  NOTIFICATIONS  */ elseif($tab==='notifications'): ?>
+  <div class="phd">
+    <div><div class="ph-title">Notifications</div><div class="ph-sub">Patient booking alerts and system messages</div></div>
+    <?php if($unread>0):?>
+    <button class="cp-btn cp-btn-ghost cp-btn-sm" onclick="markAllRead()"><i class="fa-solid fa-circle-info"></i> Mark All Read</button>
+    <?php endif;?>
+  </div>
+  <?php if(empty($notifs)):?>
+  <div class="db-panel" style="text-align:center;padding:56px 24px;color:var(--cp-outline)">
+    <i class="fa-solid fa-circle-info"></i>
+    <div style="font-size:.875rem;font-weight:600">No notifications yet</div>
+    <div style="font-size:.8125rem;margin-top:4px">Booking alerts and system messages will appear here</div>
+  </div>
+  <?php else:
+  $typeMap=['booking'=>['notifications','var(--cp-primary)','rgba(0,90,180,.08)'],'insurance'=>['verified_user','var(--cp-secondary)','rgba(0,106,106,.08)'],'system'=>['info','#7c3aed','rgba(124,58,237,.08)'],'alert'=>['warning','#d97706','rgba(217,119,6,.08)'],'review'=>['rate_review','#64748b','rgba(100,116,139,.08)']];
+  foreach($notifs as $n):
+    $nr=!$n['is_read'];[$tic,$tcol,$tbg]=$typeMap[$n['type']??'system']??$typeMap['system'];
+    $ago=time()-strtotime($n['created_at']);
+    $agoStr=$ago<60?'Just now':($ago<3600?round($ago/60).'m ago':($ago<86400?round($ago/3600).'h ago':date('M j',strtotime($n['created_at']))));
+  ?>
+  <div class="notif-item <?=$nr?'unread':''?>" id="hn-<?=$n['id']?>" onclick="markHospNotif(<?=$n['id']?>,this)" style="cursor:pointer">
+    <div class="notif-icon" style="background:<?=$tbg?>"><span class="material-symbols-outlined" style="font-size:17px;color:<?=$tcol?>"><?=$tic?></span></div>
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="font-size:.8125rem;font-weight:<?=$nr?'700':'600'?>"><?=htmlspecialchars($n['title'])?></div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          <span style="font-size:.6875rem;color:var(--cp-outline)"><?=$agoStr?></span>
+          <?php if($nr):?><div style="width:7px;height:7px;border-radius:50%;background:var(--cp-primary);flex-shrink:0"></div><?php endif;?>
         </div>
       </div>
-      <?php endforeach; ?>
+      <div style="font-size:.75rem;color:var(--cp-on-surface-var);margin-top:2px;line-height:1.5"><?=htmlspecialchars($n['message'])?></div>
     </div>
+  </div>
+  <?php endforeach;?>
+  <?php endif;?>
 
-    <!-- Billing table -->
-    <div class="hc">
-      <div class="hc-head">
-        <div class="hc-title"><i class="fa-solid fa-list"></i> Recent Invoices</div>
-        <span class="h-pill blue">Last 30 days</span>
-      </div>
-      <div class="hc-body" style="padding:0">
-        <table class="h-table">
-          <thead><tr><th>Invoice</th><th>Patient</th><th>Date</th><th>Service</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead>
-          <tbody>
-          <?php
-          $sampleInvoices = [
-              ['INV-2025-001','James Kamau','Jan 15, 2025','General Consultation','KES 3,500','NHIF','paid'],
-              ['INV-2025-002','Wanjiku Mwangi','Jan 15, 2025','Blood Test + Consultation','KES 7,200','Cash','paid'],
-              ['INV-2025-003','Ahmed Ibrahim','Jan 14, 2025','X-Ray + Consultation','KES 9,800','M-Pesa','paid'],
-              ['INV-2025-004','Grace Odhiambo','Jan 14, 2025','Maternity Check-Up','KES 4,500','Insurance','pending'],
-              ['INV-2025-005','Peter Muigai','Jan 13, 2025','Cardiology Consult','KES 8,000','NHIF','paid'],
-              ['INV-2025-006','Amina Hassan','Jan 13, 2025','Dental Cleaning','KES 6,500','Cash','overdue'],
-              ['INV-2025-007','John Njoroge','Jan 12, 2025','Emergency Visit','KES 25,000','Insurance','pending'],
-          ];
-          foreach ($sampleInvoices as [$inv,$pat,$date,$svc,$amt,$method,$status]):
-            $scls = match($status){ 'paid'=>'green','pending'=>'yellow','overdue'=>'red',default=>'gray' };
-          ?>
-          <tr>
-            <td><strong><?= $inv ?></strong></td>
-            <td><?= $pat ?></td>
-            <td><?= $date ?></td>
-            <td><?= $svc ?></td>
-            <td style="font-weight:700"><?= $amt ?></td>
-            <td><span class="h-pill blue"><?= $method ?></span></td>
-            <td><span class="h-pill <?= $scls ?>"><?= ucfirst($status) ?></span></td>
-          </tr>
-          <?php endforeach; ?>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Insurance breakdown -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px">
-      <div class="hc">
-        <div class="hc-head"><div class="hc-title"><i class="fa-solid fa-shield"></i> Insurance Breakdown</div></div>
-        <div class="hc-body">
-          <?php foreach (['NHIF'=>['KES 85,200','blue',62],'Jubilee Health'=>['KES 48,000','teal',35],'AAR'=>['KES 32,500','green',24],'APA Insurance'=>['KES 18,900','yellow',14],'Out of Pocket'=>['KES 62,700','purple',46]] as $ins=>[$amt,$cls,$pct]): ?>
-          <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--s100)">
-            <div style="flex:1">
-              <div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:13px">
-                <span style="font-weight:600;color:var(--s700)"><?= $ins ?></span>
-                <span style="font-weight:700;color:var(--s900)"><?= $amt ?></span>
-              </div>
-              <div style="height:6px;background:var(--s100);border-radius:9999px;overflow:hidden">
-                <div style="height:100%;width:<?= $pct ?>%;background:var(--h<?= $cls === 'blue' ? 'p' : ($cls==='teal'?'s':($cls==='green'?'g':($cls==='yellow'?'y':'purple'))) ?>);border-radius:9999px"></div>
-              </div>
-            </div>
+<?php /*  SETTINGS  */ elseif($tab==='settings'): ?>
+  <div class="phd"><div class="ph-title">Account Settings</div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start">
+    <!-- Facility info + logo -->
+    <div class="db-panel">
+      <h3 style="font-size:.9375rem;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:7px">
+        <i class="fa-solid fa-circle-info"></i> Facility Information
+      </h3>
+      <!-- Logo upload -->
+      <div class="cp-form-group">
+        <label class="cp-form-label">Facility Logo / Profile Photo</label>
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:8px">
+          <div style="width:64px;height:64px;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,#005ab4,#0873df);display:flex;align-items:center;justify-content:center;flex-shrink:0" id="logoPreview">
+            <?php if($logoPath):?><img id="logoImg" src="<?=htmlspecialchars($logoPath)?>" alt="" style="width:100%;height:100%;object-fit:cover"><?php else:?><i class="fa-solid fa-circle-info"></i><?php endif;?>
           </div>
-          <?php endforeach; ?>
-        </div>
-      </div>
-      <div class="hc">
-        <div class="hc-head"><div class="hc-title"><i class="fa-solid fa-chart-bar"></i> Monthly Revenue Trend</div></div>
-        <div class="hc-body">
-          <?php foreach (['Aug'=>320,'Sep'=>285,'Oct'=>410,'Nov'=>380,'Dec'=>450,'Jan'=>486] as $mon=>$rev): ?>
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-            <span style="font-size:12px;color:var(--s500);width:28px"><?= $mon ?></span>
-            <div style="flex:1;height:8px;background:var(--s100);border-radius:9999px;overflow:hidden">
-              <div style="height:100%;width:<?= round($rev/500*100) ?>%;background:var(--hp);border-radius:9999px"></div>
-            </div>
-            <span style="font-size:12px;font-weight:700;color:var(--s700);width:55px;text-align:right">K<?= $rev ?>K</span>
-          </div>
-          <?php endforeach; ?>
-          <canvas id="revSpark" width="100%" height="40" style="width:100%;margin-top:8px;opacity:.8"></canvas>
-        </div>
-      </div>
-    </div>
-
-<?php elseif ($tab === 'reports'): ?>
-<!-- ──────────────────────────────────────────────────────────
-     TAB: REPORTS
-────────────────────────────────────────────────────────── -->
-    <div class="h-pg-head">
-      <div class="h-pg-title">Reports &amp; Analytics</div>
-      <div class="h-pg-sub">Hospital performance metrics and insights</div>
-    </div>
-
-    <div class="h-stats-row" style="margin-bottom:24px">
-      <?php foreach([
-        ['fa-calendar-check','blue', $completedCount,'Completed Visits','All time'],
-        ['fa-users','teal',          $totalPatients,  'Unique Patients', 'Registered'],
-        ['fa-percentage','green',    '94.2%',         'Satisfaction',    'Patient survey'],
-        ['fa-clock','yellow',        '18 min',        'Avg Wait',        'This month'],
-      ] as [$ic,$cls,$v,$l,$s]): ?>
-      <div class="h-stat">
-        <div class="h-stat-ic <?= $cls ?>"><i class="fa-solid <?= $ic ?>"></i></div>
-        <div><div class="h-stat-val" style="font-size:22px"><?= $v ?></div><div class="h-stat-lbl"><?= $l ?></div><div class="h-stat-delta up"><?= $s ?></div></div>
-      </div>
-      <?php endforeach; ?>
-    </div>
-
-    <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px">
-      <div class="hc">
-        <div class="hc-head"><div class="hc-title"><i class="fa-solid fa-chart-area"></i> Appointment Volume</div><span class="h-pill blue" data-en="Last 12 months" data-sw="Miezi 12 iliyopita" data-en="Last 12 months" data-sw="Miezi 12 iliyopita">Last 12 months</span></div>
-        <div class="hc-body">
-          <?php
-          $months = ['Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan'];
-          $vals   = [28, 34, 29, 42, 38, 51, 44, 60, 55, 71, 66, 85];
-          $maxVal = max($vals);
-          ?>
-          <div style="display:flex;align-items:flex-end;gap:6px;height:120px;margin-bottom:8px">
-            <?php foreach ($vals as $i => $v): ?>
-            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
-              <div style="width:100%;background:<?= $i===count($vals)-1 ? 'var(--hp)' : 'var(--hp-10)' ?>;border-radius:4px 4px 0 0;height:<?= round($v/$maxVal*100) ?>%;transition:height .3s" title="<?= $months[$i] ?>: <?= $v ?> appointments"></div>
-            </div>
-            <?php endforeach; ?>
-          </div>
-          <div style="display:flex;gap:6px">
-            <?php foreach ($months as $m): ?>
-            <div style="flex:1;text-align:center;font-size:9px;color:var(--s400);font-weight:700"><?= $m ?></div>
-            <?php endforeach; ?>
-          </div>
-          <canvas id="patSpark" width="100%" height="36" style="width:100%;margin-top:12px;opacity:.7"></canvas>
-        </div>
-      </div>
-
-      <div style="display:flex;flex-direction:column;gap:16px">
-        <div class="hc">
-          <div class="hc-head"><div class="hc-title"><i class="fa-solid fa-stethoscope"></i> Top Services</div></div>
-          <div class="hc-body">
-            <?php foreach ([
-              ['General Consultation',58,'blue'],
-              ['Blood Tests / Labs',  34,'teal'],
-              ['X-Ray / Imaging',     21,'yellow'],
-              ['Maternity Care',      18,'green'],
-              ['Emergency',           12,'red'],
-            ] as [$svc,$cnt,$cls]): $pct=round($cnt/58*100); ?>
-            <div style="margin-bottom:12px">
-              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px">
-                <span style="font-weight:600;color:var(--s700)"><?= $svc ?></span>
-                <span style="color:var(--s400)"><?= $cnt ?> visits</span>
-              </div>
-              <div style="height:6px;background:var(--s100);border-radius:9999px;overflow:hidden">
-                <div style="height:100%;width:<?= $pct ?>%;background:var(--h<?= ['blue'=>'p','teal'=>'s','yellow'=>'y','green'=>'g','red'=>'r'][$cls]??'p' ?>);border-radius:9999px"></div>
-              </div>
-            </div>
-            <?php endforeach; ?>
-          </div>
-        </div>
-
-        <div class="hc">
-          <div class="hc-head"><div class="hc-title"><i class="fa-solid fa-download"></i> Export Reports</div></div>
-          <div class="hc-body">
-            <?php foreach([['Appointments CSV','fa-file-csv'],['Patient List PDF','fa-file-pdf'],['Revenue Summary','fa-file-excel'],['Monthly Report','fa-chart-line']] as [$lbl,$ic]): ?>
-            <button class="hbtn hbtn-ghost hbtn-full" style="margin-bottom:8px;justify-content:flex-start" onclick="alert('Generating <?= $lbl ?>…')">
-              <i class="fa-solid <?= $ic ?>"></i> <?= $lbl ?>
-            </button>
-            <?php endforeach; ?>
+          <div>
+            <label class="cp-btn cp-btn-ghost cp-btn-sm" style="cursor:pointer">
+              <i class="fa-solid fa-circle-info"></i> Upload Logo
+              <input type="file" accept="image/*" style="display:none" onchange="uploadLogo(this)" id="logoFileInput">
+            </label>
+            <div style="font-size:.6875rem;color:var(--cp-outline);margin-top:5px">JPG, PNG or WebP · Max 5MB</div>
           </div>
         </div>
       </div>
-    </div>
-
-<?php elseif ($tab === 'settings'): ?>
-<!-- ──────────────────────────────────────────────────────────
-     TAB: SETTINGS & PROFILE
-────────────────────────────────────────────────────────── -->
-    <div class="h-pg-head">
-      <div class="h-pg-title">Settings &amp; Profile</div>
-      <div class="h-pg-sub">Manage <?= $hName ?>'s information, hours and preferences</div>
-    </div>
-
-    <div id="hProfAlert" class="h-alert hidden"></div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-
-      <!-- Hospital Profile -->
-      <div class="hc">
-        <div class="hc-head"><div class="hc-title"><i class="fa-solid fa-hospital"></i> Hospital Information</div></div>
-        <div class="hc-body">
-          <div class="hf-group"><label class="hf-label">Hospital / Clinic Name</label>
-            <div class="h-input-wrap"><i class="fa-solid fa-hospital h-input-ico"></i><input type="text" id="hProfName" class="h-input has-ico" value="<?= htmlspecialchars($prov['name'] ?? '') ?>"></div>
-          </div>
-          <div class="h-form-row">
-            <div class="hf-group" style="margin-bottom:0"><label class="hf-label">Phone</label>
-              <div class="h-input-wrap"><i class="fa-solid fa-phone h-input-ico"></i><input type="tel" id="hProfPhone" class="h-input has-ico" value="<?= htmlspecialchars($prov['phone'] ?? '') ?>"></div>
-            </div>
-            <div class="hf-group" style="margin-bottom:0"><label class="hf-label">Email (read-only)</label>
-              <div class="h-input-wrap"><i class="fa-solid fa-envelope h-input-ico"></i><input type="email" class="h-input has-ico" value="<?= htmlspecialchars($prov['email'] ?? '') ?>" readonly style="background:var(--s100);color:var(--s400)"></div>
-            </div>
-          </div>
-          <div class="hf-group mt2"><label class="hf-label">Physical Address</label>
-            <div class="h-input-wrap"><i class="fa-solid fa-map-marker-alt h-input-ico"></i><input type="text" id="hProfAddr" class="h-input has-ico" value="<?= htmlspecialchars($prov['address'] ?? '') ?>"></div>
-          </div>
-          <div class="hf-group"><label class="hf-label">Website</label>
-            <div class="h-input-wrap"><i class="fa-solid fa-globe h-input-ico"></i><input type="url" id="hProfWeb" class="h-input has-ico" value="<?= htmlspecialchars($prov['website'] ?? '') ?>" placeholder="https://"></div>
-          </div>
-          <div class="hf-group"><label class="hf-label">About / Description</label>
-            <textarea id="hProfDesc" class="h-textarea" rows="3" placeholder="Tell patients about your hospital services and facilities…"><?= htmlspecialchars($prov['description'] ?? '') ?></textarea>
-          </div>
-          <button class="hbtn hbtn-primary hbtn-full" id="hProfBtn" onclick="hSaveProfile()">
-            <i class="fa-solid fa-floppy-disk"></i> Save Profile
-          </button>
-        </div>
+      <div class="cp-form-group"><label class="cp-form-label">Facility Name</label><input class="cp-form-input" id="set_fname" type="text" value="<?=htmlspecialchars($hosp['facility_name']??'')?>"></div>
+      <div class="cp-form-group"><label class="cp-form-label">Phone</label><input class="cp-form-input" id="set_phone" type="tel" value="<?=htmlspecialchars($hosp['phone']??'')?>"></div>
+      <div class="cp-form-group"><label class="cp-form-label">County</label><input class="cp-form-input" id="set_county" type="text" value="<?=htmlspecialchars($hosp['county']??'')?>"></div>
+      <div class="cp-form-group"><label class="cp-form-label">Website</label><input class="cp-form-input" id="set_web" type="url" value="<?=htmlspecialchars($hosp['website']??'')?>" placeholder="https://"></div>
+      <div class="cp-form-group"><label class="cp-form-label">Address</label><textarea class="cp-form-input" id="set_addr" rows="2"><?=htmlspecialchars($hosp['address']??'')?></textarea></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <input type="checkbox" id="set_emerg" style="width:17px;height:17px;accent-color:var(--cp-primary)" <?=$hosp['emergency_24h']?'checked':''?>>
+        <label for="set_emerg" style="font-size:.875rem;font-weight:600;cursor:pointer">24/7 Emergency Services</label>
       </div>
-
-      <!-- Change Password -->
-      <div style="display:flex;flex-direction:column;gap:16px">
-        <div class="hc">
-          <div class="hc-head"><div class="hc-title"><i class="fa-solid fa-lock"></i> Change Password</div></div>
-          <div class="hc-body">
-            <div id="hPwdAlert" class="h-alert hidden"></div>
-            <div class="hf-group">
-              <label class="hf-label">Current Password</label>
-              <div class="h-input-wrap"><i class="fa-solid fa-lock h-input-ico"></i><input type="password" id="hCurPwd" class="h-input has-ico" placeholder="Enter current password"></div>
-            </div>
-            <div class="hf-group">
-              <label class="hf-label">New Password</label>
-              <div class="h-input-wrap"><i class="fa-solid fa-key h-input-ico"></i>
-                <input type="password" id="hNewPwd" class="h-input has-ico" placeholder="Min 8 characters">
-                <button class="h-eye" id="hPwdEye" type="button" onclick="hTogglePwd('hNewPwd','hPwdEye')"><i class="fa-solid fa-eye"></i></button>
-              </div>
-              <div class="h-str-bar"><div class="h-str-fill" id="hStrFill"></div></div>
-              <div class="h-str-txt" id="hStrTxt"></div>
-            </div>
-            <div class="hf-group">
-              <label class="hf-label">Confirm New Password</label>
-              <div class="h-input-wrap"><i class="fa-solid fa-key h-input-ico"></i><input type="password" id="hConPwd" class="h-input has-ico" placeholder="Repeat new password"></div>
-            </div>
-            <button class="hbtn hbtn-ghost hbtn-full" id="hPwdBtn" onclick="changeHospitalPwd()">
-              <i class="fa-solid fa-shield-halved"></i> Update Password
-            </button>
-          </div>
-        </div>
-
-        <!-- Notification preferences -->
-        <div class="hc">
-          <div class="hc-head"><div class="hc-title"><i class="fa-solid fa-bell"></i> Notifications</div></div>
-          <div class="hc-body">
-            <?php foreach (['Email: New appointments' => true,'SMS: Appointment reminders' => true,'Email: Billing updates' => true,'Push: Patient arrivals' => false,'Daily summary email' => true] as $lbl => $def): ?>
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--s100)">
-              <span style="font-size:13px;font-weight:600;color:var(--s700)"><?= $lbl ?></span>
-              <label class="h-toggle"><input type="checkbox" <?= $def ? 'checked' : '' ?>><div class="h-toggle-track"></div><div class="h-toggle-thumb"></div></label>
-            </div>
-            <?php endforeach; ?>
-          </div>
-        </div>
-
-        <!-- Account info -->
-        <div class="hc">
-          <div class="hc-head"><div class="hc-title"><i class="fa-solid fa-circle-info"></i> Account Details</div></div>
-          <div class="hc-body">
-            <?php foreach ([
-              'Provider ID'    => '#' . str_pad($pvid, 6, '0', STR_PAD_LEFT),
-              'Type'           => ucfirst($ptype),
-              'Status'         => ucfirst($pStatus),
-              'License #'      => $prov['license_number'] ?? '—',
-              'City'           => $prov['city'] ?? '—',
-              'Member Since'   => date('M Y', strtotime($prov['created_at'] ?? 'now')),
-              'Rating'         => number_format($prov['rating'] ?? 0, 1) . ' ★ (' . ($prov['review_count'] ?? 0) . ' reviews)',
-            ] as $l => $v): ?>
-            <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--s100)">
-              <span style="font-size:13px;color:var(--s500)"><?= $l ?></span>
-              <span style="font-size:13px;font-weight:600;color:var(--s900)"><?= htmlspecialchars((string)$v) ?></span>
-            </div>
-            <?php endforeach; ?>
-          </div>
+      <button class="cp-btn cp-btn-primary cp-btn-full" onclick="saveSettings()"><i class="fa-solid fa-circle-info"></i> Save Changes</button>
+    </div>
+    <!-- Security -->
+    <div class="db-panel">
+      <h3 style="font-size:.9375rem;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:7px">
+        <i class="fa-solid fa-circle-info"></i> Security
+      </h3>
+      <div class="cp-form-group"><label class="cp-form-label">Admin Email</label><input class="cp-form-input" type="email" value="<?=htmlspecialchars($hosp['admin_email']??'')?>" readonly style="opacity:.6;cursor:not-allowed"></div>
+      <div class="cp-form-group"><label class="cp-form-label">Current Password</label><input class="cp-form-input" id="pw_current" type="password" placeholder="Enter current password"></div>
+      <div class="cp-form-group"><label class="cp-form-label">New Password</label><input class="cp-form-input" id="pw_new" type="password" placeholder="Min 8 characters"></div>
+      <div class="cp-form-group"><label class="cp-form-label">Confirm Password</label><input class="cp-form-input" id="pw_confirm" type="password" placeholder="Repeat new password"></div>
+      <button class="cp-btn cp-btn-ghost cp-btn-full" onclick="changePassword()">Update Password</button>
+      <div style="margin-top:16px;padding:12px;background:rgba(0,106,106,.06);border-radius:var(--cp-r);border:1px solid rgba(0,106,106,.12)">
+        <div style="display:flex;align-items:center;gap:8px">
+          <i class="fa-solid fa-circle-info"></i>
+          <div><div style="font-size:.8125rem;font-weight:600">KEPDA Security Active</div><div style="font-size:.6875rem;color:var(--cp-on-surface-var)">Data encrypted at rest — AES-256</div></div>
         </div>
       </div>
     </div>
+  </div>
+<?php endif;?>
 
-    <!-- Availability / Opening Hours -->
-    <div class="hc" style="margin-top:20px">
-      <div class="hc-head">
-        <div class="hc-title"><i class="fa-solid fa-clock"></i> Operating Hours</div>
-        <button class="hbtn hbtn-primary hbtn-sm" id="hAvailBtn" onclick="hSaveAvail()"><i class="fa-solid fa-floppy-disk"></i> Save Hours</button>
+  </div><!-- /db-content -->
+  <footer class="cp-footer">
+    <div class="cp-footer-links"><a href="/privacy.php">Privacy</a><a href="/terms.php">Terms</a><a href="/security.php">Security</a></div>
+    <span>© <?=date('Y')?> Planeazzy. KEPDA Compliant.</span>
+  </footer>
+</div><!-- /db-main -->
+
+<!--  MODALS  -->
+<!-- Notifications modal -->
+<div class="cp-modal-overlay" id="notifModal" onclick="if(event.target===this)closeModal('notifModal')">
+  <div class="cp-modal">
+    <div class="cp-modal-header">
+      <h2 style="font-size:1rem;font-weight:700">Notifications</h2>
+      <div style="display:flex;gap:6px">
+        <?php if($unread>0):?><button class="cp-btn cp-btn-sm cp-btn-ghost" onclick="markAllRead()" style="font-size:.6875rem">Mark all read</button><?php endif;?>
+        <button onclick="closeModal('notifModal')" style="background:none;border:none;cursor:pointer"><i class="fa-solid fa-circle-info"></i></button>
       </div>
-      <div class="hc-body" style="padding:0">
-        <div id="hAvailAlert" class="h-alert hidden" style="margin:12px 20px 0"></div>
-        <?php foreach (['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'] as $day): ?>
-        <div class="h-day-row" data-day="<?= $day ?>" style="display:flex;align-items:center;gap:16px;padding:16px 20px;border-bottom:1px solid var(--s100);flex-wrap:wrap">
-          <div style="width:96px;flex-shrink:0;font-size:14px;font-weight:700;color:var(--s900)"><?= $day ?></div>
-          <input type="time" class="h-input hts" value="08:00" style="width:120px">
-          <span style="font-size:13px;color:var(--s400)">to</span>
-          <input type="time" class="h-input hte" value="<?= in_array($day,['Saturday','Sunday'])?'13:00':'18:00' ?>">
-          <div style="display:flex;background:var(--white);border:1.5px solid var(--s200);border-radius:var(--r);overflow:hidden">
-            <button class="h-mode-btn active" data-mode="in_person" style="padding:6px 12px;font-size:11px;font-weight:700;border:none;cursor:pointer;font-family:var(--font);background:var(--hp);color:#fff">In-Person</button>
-            <button class="h-mode-btn" data-mode="telehealth" style="padding:6px 12px;font-size:11px;font-weight:700;border:none;cursor:pointer;font-family:var(--font);background:transparent;color:var(--s500)">Telehealth</button>
-            <button class="h-mode-btn" data-mode="both" style="padding:6px 12px;font-size:11px;font-weight:700;border:none;cursor:pointer;font-family:var(--font);background:transparent;color:var(--s500)">Both</button>
-          </div>
-          <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;color:var(--s500);margin-left:auto">
-            <input type="checkbox" class="h-day-closed" <?= in_array($day,['Sunday'])?'checked':'' ?>> Closed
+    </div>
+    <div style="max-height:420px;overflow-y:auto">
+    <?php if(empty($notifs)):?><div style="text-align:center;padding:32px;color:var(--cp-outline)"><i class="fa-solid fa-circle-info"></i>No notifications</div>
+    <?php else: foreach(array_slice($notifs,0,20) as $n):?>
+    <div class="db-booking-row" id="mn-<?=$n['id']?>" onclick="markNotifRead(<?=$n['id']?>)" style="opacity:<?=$n['is_read']?.6:1?>">
+      <div style="width:32px;height:32px;border-radius:50%;background:rgba(0,90,180,.08);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fa-solid fa-circle-info"></i></div>
+      <div><div style="font-weight:600;font-size:.8125rem;margin-bottom:1px"><?=htmlspecialchars($n['title'])?></div><div style="font-size:.75rem;color:var(--cp-on-surface-var)"><?=htmlspecialchars($n['message'])?></div><div style="font-size:.625rem;color:var(--cp-outline);margin-top:2px"><?=date('M d, g:i A',strtotime($n['created_at']))?></div></div>
+    </div>
+    <?php endforeach;endif;?>
+    </div>
+  </div>
+</div>
+
+<!-- Add Doctor -->
+<div class="cp-modal-overlay" id="addDoctorModal" onclick="if(event.target===this)closeModal('addDoctorModal')">
+  <div class="cp-modal"><div class="cp-modal-header"><h2 style="font-size:1rem;font-weight:700">Add Doctor</h2><button onclick="closeModal('addDoctorModal')" style="background:none;border:none;cursor:pointer"><i class="fa-solid fa-circle-info"></i></button></div>
+    <div class="cp-form-group"><label class="cp-form-label">Full Name *</label><input class="cp-form-input" id="doc_name" type="text" placeholder="Dr. Full Name"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="cp-form-group"><label class="cp-form-label">Email</label><input class="cp-form-input" id="doc_email" type="email" placeholder="doctor@email.com"></div>
+      <div class="cp-form-group"><label class="cp-form-label">Phone</label><input class="cp-form-input" id="doc_phone" type="tel" placeholder="+254700000000"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="cp-form-group"><label class="cp-form-label">Specialty *</label><input class="cp-form-input" id="doc_spec" type="text" placeholder="e.g., Cardiologist"></div>
+      <div class="cp-form-group"><label class="cp-form-label">KMPDC Licence</label><input class="cp-form-input" id="doc_lic" type="text" placeholder="KMPDC/0000/0000"></div>
+    </div>
+    <div class="cp-form-group"><label class="cp-form-label">Department</label><select class="cp-form-input" id="doc_dept" style="cursor:pointer"><option value="">— None —</option><?php foreach($depts as $d):?><option value="<?=$d['id']?>"><?=htmlspecialchars($d['name'])?></option><?php endforeach;?></select></div>
+    <button class="cp-btn cp-btn-primary cp-btn-full" onclick="addDoctor()"><i class="fa-solid fa-circle-info"></i> Add Doctor</button>
+  </div>
+</div>
+
+<!-- Edit Doctor (rich profile) -->
+<div class="cp-modal-overlay" id="editDoctorModal" onclick="if(event.target===this)closeModal('editDoctorModal')">
+  <div class="cp-modal cp-modal-lg">
+    <div class="cp-modal-header"><h2 style="font-size:1rem;font-weight:700">Edit Doctor Profile</h2><button onclick="closeModal('editDoctorModal')" style="background:none;border:none;cursor:pointer"><i class="fa-solid fa-circle-info"></i></button></div>
+    <input type="hidden" id="edit_doc_id">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="cp-form-group"><label class="cp-form-label">Full Name *</label><input class="cp-form-input" id="edit_name" type="text"></div>
+      <div class="cp-form-group"><label class="cp-form-label">Specialty</label><input class="cp-form-input" id="edit_spec" type="text"></div>
+      <div class="cp-form-group"><label class="cp-form-label">Email</label><input class="cp-form-input" id="edit_email" type="email"></div>
+      <div class="cp-form-group"><label class="cp-form-label">Phone</label><input class="cp-form-input" id="edit_phone" type="tel"></div>
+      <div class="cp-form-group"><label class="cp-form-label">KMPDC Licence</label><input class="cp-form-input" id="edit_lic" type="text"></div>
+      <div class="cp-form-group"><label class="cp-form-label">Gender</label><select class="cp-form-input" id="edit_gender"><option value="">— Select —</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select></div>
+      <div class="cp-form-group"><label class="cp-form-label">Years Experience</label><input class="cp-form-input" id="edit_exp" type="number" min="0" max="60"></div>
+      <div class="cp-form-group"><label class="cp-form-label">Consult Fee (KES)</label><input class="cp-form-input" id="edit_fee" type="number" min="0" step="100"></div>
+      <div class="cp-form-group"><label class="cp-form-label">Languages</label><input class="cp-form-input" id="edit_langs" type="text" placeholder="English, Swahili"></div>
+      <div class="cp-form-group"><label class="cp-form-label">Education</label><input class="cp-form-input" id="edit_edu" type="text" placeholder="MBChB, University of Nairobi"></div>
+      <div class="cp-form-group"><label class="cp-form-label">Status</label><select class="cp-form-input" id="edit_status"><option value="on-duty">On Duty</option><option value="off-duty">Off Duty</option><option value="on-break">On Break</option><option value="suspended">Suspended</option></select></div>
+      <div class="cp-form-group" style="display:flex;flex-direction:column;gap:8px;justify-content:flex-end;padding-bottom:14px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="edit_tele" style="accent-color:var(--cp-primary)"><span style="font-size:.875rem">Accepts Tele-consult</span></label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="edit_walkin" style="accent-color:var(--cp-primary)" checked><span style="font-size:.875rem">Accepts Walk-in</span></label>
+      </div>
+    </div>
+    <div class="cp-form-group"><label class="cp-form-label">Bio / About</label><textarea class="cp-form-input" id="edit_bio" rows="3" placeholder="Brief professional bio..."></textarea></div>
+    <!-- Availability -->
+    <div class="cp-form-group">
+      <label class="cp-form-label">Available Days &amp; Times</label>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px" id="availGrid">
+        <?php foreach(['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] as $day):?>
+        <div style="text-align:center">
+          <label style="cursor:pointer">
+            <input type="checkbox" class="avail-day" data-day="<?=$day?>" style="display:block;margin:0 auto 3px;accent-color:var(--cp-primary)">
+            <span style="font-size:.625rem;font-weight:700;color:var(--cp-on-surface-var)"><?=$day?></span>
           </label>
+          <input type="text" class="avail-time" data-day="<?=$day?>" placeholder="9-17" style="width:100%;font-size:.625rem;padding:3px;border:1px solid var(--cp-outline-var);border-radius:4px;text-align:center;background:var(--cp-surface-container-low);color:var(--cp-on-surface)">
         </div>
-        <?php endforeach; ?>
+        <?php endforeach;?>
       </div>
+      <div style="font-size:.6875rem;color:var(--cp-outline);margin-top:5px">Enter time range e.g. "8-16" or "08:00-16:00"</div>
     </div>
-
-    <!-- Danger zone -->
-    <div class="hc" style="margin-top:16px;border-color:rgba(220,38,38,.3)">
-      <div class="hc-head" style="border-bottom-color:rgba(220,38,38,.2)"><div class="hc-title" style="color:var(--hr)"><i class="fa-solid fa-triangle-exclamation"></i> Danger Zone</div></div>
-      <div class="hc-body">
-        <p style="font-size:13px;color:var(--s500);margin-bottom:14px">Permanently deactivate or delete this hospital account. This cannot be undone.</p>
-        <button class="hbtn hbtn-ghost" style="color:var(--hr);border-color:rgba(220,38,38,.3)" onclick="if(confirm('This will permanently delete all data. Are you sure?'))alert('Please contact support@planeazzy.co.ke to delete your account.')">
-          <i class="fa-solid fa-trash"></i> Delete Hospital Account
-        </button>
-      </div>
-    </div>
-
-<?php endif; // end tab ?>
-
-  </div><!-- /.h-page -->
-</div><!-- /.h-main -->
-</div><!-- /.h-layout -->
-
-<!-- Mobile toggle button -->
-<button class="h-mob-tog" id="hMobToggle" onclick="toggleHSidebar()" style="display:none">
-  <i class="fa-solid fa-bars"></i>
-</button>
-
-<!-- ══════════════════════════════════════════════════════════
-     MODALS
-══════════════════════════════════════════════════════════ -->
-
-<!-- Book Appointment Modal -->
-<div class="h-modal" id="hBookModal">
-  <div class="h-modal-box">
-    <div class="h-modal-head">
-      <h3><i class="fa-solid fa-calendar-plus" style="color:var(--hp);margin-right:8px"></i data-en="Book Appointment" data-sw="Weka Miadi">Book Appointment</h3>
-      <button class="h-modal-close" onclick="hCloseModal('hBookModal')"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    <div class="h-modal-body">
-      <div id="hBookAlert" class="h-alert hidden"></div>
-      <div class="h-form-row">
-        <div class="hf-group" style="margin-bottom:0"><label class="hf-label">Service Type</label>
-          <select class="h-select" id="hBookType"><option value="hospital">Hospital Visit</option><option value="doctor">See a Doctor</option><option value="telehealth">Telehealth</option><option value="lab">Lab Test</option><option value="pharmacy">Pharmacy</option></select>
-        </div>
-        <div class="hf-group" style="margin-bottom:0"><label class="hf-label">Visit Type</label>
-          <select class="h-select" id="hBookLocType"><option value="in_person">In-Person</option><option value="telehealth">Telehealth</option><option value="home_visit">Home Visit</option></select>
-        </div>
-      </div>
-      <div class="hf-group mt2"><label class="hf-label">Assign Doctor (optional)</label>
-        <select class="h-select" id="hBookPid">
-          <option value="">— Any available doctor —</option>
-          <?php foreach ($allDocs as $d): ?>
-          <option value="<?= $d['id'] ?>"><?= htmlspecialchars($d['name']) ?> · <?= htmlspecialchars($d['specialty'] ?? '') ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div class="h-form-row">
-        <div class="hf-group" style="margin-bottom:0"><label class="hf-label">Date <span class="hf-req">*</span></label><input type="date" id="hBookDate" class="h-input" min="<?= date('Y-m-d') ?>"></div>
-        <div class="hf-group" style="margin-bottom:0"><label class="hf-label">Time</label><input type="time" id="hBookTime" class="h-input" value="09:00"></div>
-      </div>
-      <div class="hf-group mt2"><label class="hf-label">Reason / Title <span class="hf-req">*</span></label>
-        <div class="h-input-wrap"><i class="fa-solid fa-file-medical h-input-ico"></i><input type="text" id="hBookTitle" class="h-input has-ico" placeholder="e.g. General check-up, Follow-up…"></div>
-      </div>
-      <div class="hf-group"><label class="hf-label">Notes</label>
-        <textarea id="hBookNotes" class="h-textarea" rows="2" placeholder="Symptoms, allergies, or instructions…"></textarea>
-      </div>
-      <button class="hbtn hbtn-primary hbtn-full hbtn-lg" id="hBookBtn" style="margin-top:8px" onclick="hBookAppt()">
-        <i class="fa-solid fa-calendar-check"></i> Confirm Appointment
-      </button>
-    </div>
+    <button class="cp-btn cp-btn-primary cp-btn-full" onclick="saveDocProfile()"><i class="fa-solid fa-circle-info"></i> Save Doctor Profile</button>
   </div>
 </div>
 
-<!-- Invite Doctor Modal -->
-<div class="h-modal" id="hInviteDocModal">
-  <div class="h-modal-box">
-    <div class="h-modal-head">
-      <h3><i class="fa-solid fa-user-doctor" style="color:var(--hp);margin-right:8px"></i>Invite / Link Doctor</h3>
-      <button class="h-modal-close" onclick="hCloseModal('hInviteDocModal')"><i class="fa-solid fa-xmark"></i></button>
+<!-- Add Appointment -->
+<div class="cp-modal-overlay" id="addApptModal" onclick="if(event.target===this)closeModal('addApptModal')">
+  <div class="cp-modal"><div class="cp-modal-header"><h2 style="font-size:1rem;font-weight:700">Add Appointment</h2><button onclick="closeModal('addApptModal')" style="background:none;border:none;cursor:pointer"><i class="fa-solid fa-circle-info"></i></button></div>
+    <div class="cp-form-group"><label class="cp-form-label">Patient Name *</label><input class="cp-form-input" id="appt_name" type="text" placeholder="Full name"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="cp-form-group"><label class="cp-form-label">Phone</label><input class="cp-form-input" id="appt_phone" type="tel" placeholder="+254..."></div>
+      <div class="cp-form-group"><label class="cp-form-label">Email</label><input class="cp-form-input" id="appt_email" type="email" placeholder="patient@email.com"></div>
     </div>
-    <div class="h-modal-body">
-      <div id="hInviteAlert" class="h-alert hidden"></div>
-      <p style="font-size:13px;color:var(--s500);margin-bottom:16px">Enter the doctor's registered Planeazzy email to send an invitation to join your hospital network.</p>
-      <div class="hf-group"><label class="hf-label">Doctor's Email <span class="hf-req">*</span></label>
-        <div class="h-input-wrap"><i class="fa-solid fa-envelope h-input-ico"></i><input type="email" id="hInvEmail" class="h-input has-ico" placeholder="doctor@example.com"></div>
-      </div>
-      <div class="hf-group"><label class="hf-label">Specialty (optional)</label>
-        <input type="text" id="hInvSpec" class="h-input" placeholder="e.g. Cardiologist, Pediatrician…">
-      </div>
-      <div class="hf-group"><label class="hf-label">Message</label>
-        <textarea class="h-textarea" rows="2" placeholder="We would like to invite you to join our hospital network…"></textarea>
-      </div>
-      <button class="hbtn hbtn-primary hbtn-full" onclick="HUI.alert('ok','Invitation sent to '+document.getElementById('hInvEmail').value,'hInviteAlert');setTimeout(()=>hCloseModal('hInviteDocModal'),1500)">
-        <i class="fa-solid fa-paper-plane"></i> Send Invitation
-      </button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="cp-form-group"><label class="cp-form-label">Date &amp; Time *</label><input class="cp-form-input" id="appt_datetime" type="datetime-local"></div>
+      <div class="cp-form-group"><label class="cp-form-label">Visit Type</label><select class="cp-form-input" id="appt_type" style="cursor:pointer"><option value="in-person">In-Person</option><option value="tele-consult">Tele-consult</option></select></div>
     </div>
+    <div class="cp-form-group"><label class="cp-form-label">Department</label><select class="cp-form-input" id="appt_dept" style="cursor:pointer"><option value="">— Select —</option><?php foreach($depts as $d):?><option value="<?=htmlspecialchars($d['name'])?>"><?=htmlspecialchars($d['name'])?></option><?php endforeach;?></select></div>
+    <button class="cp-btn cp-btn-primary cp-btn-full" onclick="addAppt()">Add Appointment</button>
   </div>
 </div>
 
-<!-- Create Invoice Modal -->
-<div class="h-modal" id="hInvoiceModal">
-  <div class="h-modal-box">
-    <div class="h-modal-head">
-      <h3><i class="fa-solid fa-file-invoice" style="color:var(--hp);margin-right:8px"></i>Create Invoice</h3>
-      <button class="h-modal-close" onclick="hCloseModal('hInvoiceModal')"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    <div class="h-modal-body">
-      <div class="hf-group"><label class="hf-label">Patient Name <span class="hf-req">*</span></label><input type="text" class="h-input" placeholder="Patient full name" required></div>
-      <div class="h-form-row">
-        <div class="hf-group" style="margin-bottom:0"><label class="hf-label">Service</label><input type="text" class="h-input" placeholder="General Consultation"></div>
-        <div class="hf-group" style="margin-bottom:0"><label class="hf-label">Amount (KES)</label><input type="number" class="h-input" placeholder="0.00"></div>
-      </div>
-      <div class="h-form-row mt2">
-        <div class="hf-group" style="margin-bottom:0"><label class="hf-label">Payment Method</label>
-          <select class="h-select"><option>NHIF</option><option>M-Pesa</option><option>Cash</option><option>Card</option><option>Insurance</option></select>
-        </div>
-        <div class="hf-group" style="margin-bottom:0"><label class="hf-label">Due Date</label><input type="date" class="h-input" value="<?= date('Y-m-d') ?>"></div>
-      </div>
-      <div class="hf-group mt2"><label class="hf-label">Notes</label><textarea class="h-textarea" rows="2" placeholder="Additional notes…"></textarea></div>
-      <button class="hbtn hbtn-primary hbtn-full" style="margin-top:8px" onclick="HUI.alert('ok','Invoice created successfully!','hInvoiceAlert');setTimeout(()=>hCloseModal('hInvoiceModal'),1500)">
-        <i class="fa-solid fa-file-circle-check"></i> Generate Invoice
-      </button>
-      <div id="hInvoiceAlert" class="h-alert hidden" style="margin-top:10px"></div>
-    </div>
+<!-- Add Department -->
+<div class="cp-modal-overlay" id="addDeptModal" onclick="if(event.target===this)closeModal('addDeptModal')">
+  <div class="cp-modal"><div class="cp-modal-header"><h2 style="font-size:1rem;font-weight:700">Add Department</h2><button onclick="closeModal('addDeptModal')" style="background:none;border:none;cursor:pointer"><i class="fa-solid fa-circle-info"></i></button></div>
+    <div class="cp-form-group"><label class="cp-form-label">Department Name *</label><input class="cp-form-input" id="dept_name" type="text" placeholder="e.g., Cardiology"></div>
+    <div class="cp-form-group"><label class="cp-form-label">Icon (Material Symbol)</label><input class="cp-form-input" id="dept_icon" type="text" value="stethoscope"></div>
+    <div class="cp-form-group"><label class="cp-form-label">Capacity</label><input class="cp-form-input" id="dept_cap" type="number" min="0" placeholder="0"></div>
+    <button class="cp-btn cp-btn-primary cp-btn-full" onclick="addDept()">Add Department</button>
   </div>
 </div>
 
-<script src="/assets/js/app.js"></script>
-<script src="/assets/js/hospital.js"></script>
+<!-- Connect Insurance -->
+<div class="cp-modal-overlay" id="connInsModal" onclick="if(event.target===this)closeModal('connInsModal')">
+  <div class="cp-modal"><div class="cp-modal-header"><h2 style="font-size:1rem;font-weight:700" id="connInsTitle">Connect Insurance</h2><button onclick="closeModal('connInsModal')" style="background:none;border:none;cursor:pointer"><i class="fa-solid fa-circle-info"></i></button></div>
+    <input type="hidden" id="conn_ins_key"><input type="hidden" id="conn_ins_name">
+    <div class="cp-form-group"><label class="cp-form-label">Policy / Contract Reference (optional)</label><input class="cp-form-input" id="conn_ins_ref" type="text" placeholder="e.g., NHIF-2025-12345"></div>
+    <p style="font-size:.8125rem;color:var(--cp-on-surface-var);margin-bottom:16px">By connecting, you confirm your facility has a valid agreement with this insurer.</p>
+    <button class="cp-btn cp-btn-primary cp-btn-full" onclick="submitConnectIns()"><i class="fa-solid fa-circle-info"></i> Connect Now</button>
+  </div>
+</div>
+
+<div class="cp-mob-overlay" id="mobOverlay" onclick="closeSidebar()"></div>
+<button class="cp-mob-toggle" id="mobFABToggle" onclick="toggleSidebar()"><i class="fa-solid fa-circle-info"></i></button>
+<div class="toast" id="toast"></div>
+
 <script>
-// Mobile toggle visibility
-(function(){
-  var b=document.getElementById('hMobToggle');
-  if(b){if(window.innerWidth<=768)b.style.display='flex';window.addEventListener('resize',()=>{b.style.display=window.innerWidth<=768?'flex':'none';});}
-})();
+const CSRF = '<?=htmlspecialchars($csrf)?>';
+const API  = '/hospital/onboarding/api.php';
 
-// Tab switching helpers
-function setApptTab(t){const p=new URLSearchParams(window.location.search);p.set('af',t);window.location.href='?tab=appointments&'+p.toString();}
-
-// Password change
-async function changeHospitalPwd(){
-  const cur=document.getElementById('hCurPwd')?.value,nw=document.getElementById('hNewPwd')?.value,con=document.getElementById('hConPwd')?.value;
-  if(!cur||!nw||!con){HUI.alert('warn','Please fill all password fields.','hPwdAlert');return;}
-  if(nw!==con){HUI.alert('err','Passwords do not match.','hPwdAlert');return;}
-  if(nw.length<8){HUI.alert('err','New password must be at least 8 characters.','hPwdAlert');return;}
-  HUI.alert('ok','Password updated successfully!','hPwdAlert');
+/*  Toast  */
+function toast(msg,type='ok'){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='toast '+type+' show';
+  setTimeout(()=>el.classList.remove('show'),3500);
 }
 
-// Strength meter
-HPwd.init('hNewPwd','hStrFill','hStrTxt');
-</script>
+/*  API  */
+async function api(action,data={}){
+  try{
+    const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,csrf_token:CSRF,...data})});
+    return await r.json();
+  }catch(e){toast('Network error','err');return{ok:false};}
+}
 
-<script>document.addEventListener("DOMContentLoaded",()=>{if(typeof Lang!=="undefined")Lang.init();document.getElementById("langToggle")?.addEventListener("click",()=>Lang.toggle());});</script>
+/*  Modals  */
+function openModal(id){document.getElementById(id)?.classList.add('open');document.body.style.overflow='hidden';}
+function closeModal(id){document.getElementById(id)?.classList.remove('open');document.body.style.overflow='';}
+
+/*  Sidebar  */
+function toggleSidebar(){
+  const sb=document.getElementById('cpSidebar'),ov=document.getElementById('mobOverlay');
+  const open=sb.classList.toggle('open');ov.classList.toggle('open',open);document.body.style.overflow=open?'hidden':'';
+}
+function closeSidebar(){
+  document.getElementById('cpSidebar')?.classList.remove('open');
+  document.getElementById('mobOverlay')?.classList.remove('open');
+  document.body.style.overflow='';
+}
+document.getElementById('mobToggle')?.addEventListener('click',toggleSidebar);
+
+/*  Appointments  */
+function filterAppts(status,btn){
+  document.querySelectorAll('.cp-tab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  document.querySelectorAll('#apptTable tbody tr').forEach(r=>{r.style.display=(status==='all'||r.dataset.status===status)?'':'none';});
+}
+async function updateApptStatus(id,status){
+  const r=await api('update_appointment',{appointment_id:id,status});
+  if(r.ok){toast('Appointment '+status,'ok');setTimeout(()=>location.reload(),900);}
+  else toast(r.msg||'Error','err');
+}
+function confirmAppt(id){if(confirm('Confirm this appointment? Patient will be notified by email and SMS.'))updateApptStatus(id,'confirmed');}
+function cancelAppt(id){if(confirm('Cancel this appointment? Patient will be notified.'))updateApptStatus(id,'cancelled');}
+function completeAppt(id){updateApptStatus(id,'completed');}
+
+async function addAppt(){
+  const name=document.getElementById('appt_name').value.trim();
+  const dt=document.getElementById('appt_datetime').value;
+  if(!name||!dt){toast('Patient name and date are required','err');return;}
+  const r=await api('add_appointment',{patient_name:name,patient_phone:document.getElementById('appt_phone').value,patient_email:document.getElementById('appt_email').value,appointment_at:dt,visit_type:document.getElementById('appt_type').value,department:document.getElementById('appt_dept').value});
+  if(r.ok){toast('Appointment added','ok');closeModal('addApptModal');setTimeout(()=>location.reload(),800);}
+  else toast(r.msg||'Error','err');
+}
+
+/*  Doctors  */
+async function addDoctor(){
+  const name=document.getElementById('doc_name').value.trim();
+  if(!name){toast('Doctor name is required','err');return;}
+  const r=await api('add_doctor',{name,email:document.getElementById('doc_email').value,phone:document.getElementById('doc_phone').value,specialty:document.getElementById('doc_spec').value,licence:document.getElementById('doc_lic').value,department_id:document.getElementById('doc_dept').value});
+  if(r.ok){toast(r.msg||'Doctor added','ok');closeModal('addDoctorModal');setTimeout(()=>location.reload(),800);}
+  else toast(r.msg||'Error adding doctor','err');
+}
+async function updateDoctorStatus(id,status){
+  const r=await api('update_doctor_status',{doctor_id:id,status});
+  if(r.ok)toast('Status updated','ok');else toast('Error','err');
+}
+async function deleteDoctor(id,btn){
+  if(!confirm('Remove this doctor?'))return;
+  btn.disabled=true;
+  const r=await api('delete_doctor',{doctor_id:id});
+  if(r.ok){toast('Doctor removed','ok');document.getElementById('doc-card-'+id)?.remove();}
+  else{toast(r.msg||'Error','err');btn.disabled=false;}
+}
+async function editDoctor(id){
+  const r=await api('get_doctor',{doctor_id:id});
+  if(!r.ok){toast('Could not load doctor','err');return;}
+  const d=r.doctor;
+  document.getElementById('edit_doc_id').value=id;
+  document.getElementById('edit_name').value=d.name||'';
+  document.getElementById('edit_spec').value=d.specialty||'';
+  document.getElementById('edit_email').value=d.email||'';
+  document.getElementById('edit_phone').value=d.phone||'';
+  document.getElementById('edit_lic').value=d.kmpdc_licence||'';
+  document.getElementById('edit_gender').value=d.gender||'';
+  document.getElementById('edit_exp').value=d.years_exp||0;
+  document.getElementById('edit_fee').value=d.consult_fee||0;
+  document.getElementById('edit_langs').value=d.languages||'English';
+  document.getElementById('edit_edu').value=d.education||'';
+  document.getElementById('edit_bio').value=d.bio||'';
+  document.getElementById('edit_status').value=d.status||'off-duty';
+  document.getElementById('edit_tele').checked=!!parseInt(d.accepts_tele||0);
+  document.getElementById('edit_walkin').checked=!!parseInt(d.accepts_walkin||1);
+  // Populate availability
+  const avail=d.availability?JSON.parse(d.availability):{};
+  document.querySelectorAll('.avail-day').forEach(cb=>{
+    const day=cb.dataset.day;cb.checked=!!(avail[day]);
+    const ti=document.querySelector('.avail-time[data-day="'+day+'"]');
+    if(ti) ti.value=avail[day]||'';
+  });
+  openModal('editDoctorModal');
+}
+async function saveDocProfile(){
+  const id=document.getElementById('edit_doc_id').value;
+  if(!id){toast('No doctor selected','err');return;}
+  // Build availability object
+  const avail={};
+  document.querySelectorAll('.avail-day:checked').forEach(cb=>{
+    const day=cb.dataset.day;
+    const ti=document.querySelector('.avail-time[data-day="'+day+'"]');
+    avail[day]=ti?ti.value:'';
+  });
+  const r=await api('update_doctor_full',{
+    doctor_id:parseInt(id),
+    name:document.getElementById('edit_name').value.trim(),
+    specialty:document.getElementById('edit_spec').value,
+    email:document.getElementById('edit_email').value,
+    phone:document.getElementById('edit_phone').value,
+    kmpdc_licence:document.getElementById('edit_lic').value,
+    gender:document.getElementById('edit_gender').value,
+    years_exp:parseInt(document.getElementById('edit_exp').value)||0,
+    consult_fee:parseFloat(document.getElementById('edit_fee').value)||0,
+    languages:document.getElementById('edit_langs').value,
+    education:document.getElementById('edit_edu').value,
+    bio:document.getElementById('edit_bio').value,
+    status:document.getElementById('edit_status').value,
+    accepts_tele:document.getElementById('edit_tele').checked?1:0,
+    accepts_walkin:document.getElementById('edit_walkin').checked?1:0,
+    availability:avail
+  });
+  if(r.ok){toast('Doctor profile saved','ok');closeModal('editDoctorModal');setTimeout(()=>location.reload(),800);}
+  else toast(r.msg||'Error saving profile','err');
+}
+
+/*  Avatar uploads  */
+async function uploadDocAvatar(docId,input){
+  if(!input.files[0])return;
+  const fd=new FormData();
+  fd.append('avatar',input.files[0]);fd.append('doctor_id',docId);
+  toast('Uploading photo…','ok');
+  try{
+    const r=await fetch('/api/hospital/upload-doctor-avatar.php',{method:'POST',body:fd});
+    const j=await r.json();
+    if(j.ok){
+      toast('Photo updated','ok');
+      const el=document.getElementById('docav-'+docId);
+      if(el){
+        el.innerHTML='<img src="'+j.avatar_path+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">';
+      }
+    }else toast(j.msg||'Upload failed','err');
+  }catch(e){toast('Upload error','err');}
+}
+
+async function uploadLogo(input){
+  if(!input.files[0])return;
+  const fd=new FormData();fd.append('logo',input.files[0]);
+  toast('Uploading logo…','ok');
+  try{
+    const r=await fetch('/api/hospital/upload-logo.php',{method:'POST',body:fd});
+    const j=await r.json();
+    if(j.ok){
+      toast('Logo updated','ok');
+      const preview=document.getElementById('logoPreview');
+      if(preview){preview.innerHTML='<img id="logoImg" src="'+j.logo_path+'" alt="" style="width:100%;height:100%;object-fit:cover">';}
+    }else toast(j.msg||'Upload failed','err');
+  }catch(e){toast('Upload error','err');}
+}
+
+/*  Services  */
+async function toggleService(key,enabled,cb){
+  const card=document.getElementById('svc-'+key);
+  const status=document.getElementById('svc-status-'+key);
+  const tog=document.getElementById('tog-'+key);
+  const knob=document.getElementById('togknob-'+key);
+  const r=await api('toggle_service',{service_key:key,enabled});
+  if(r.ok){
+    if(card) card.style.opacity=enabled?'1':'0.6';
+    if(status) status.textContent=enabled?'Active':'Inactive';
+    if(tog) tog.style.background=enabled?'var(--cp-secondary)':'var(--cp-outline-var)';
+    if(knob) knob.style.left=enabled?'20px':'2px';
+    toast(enabled?'Service activated':'Service deactivated','ok');
+  }else{cb.checked=!enabled;toast(r.msg||'Error','err');}
+}
+
+/*  Departments  */
+async function addDept(){
+  const name=document.getElementById('dept_name').value.trim();
+  const icon=document.getElementById('dept_icon').value.trim()||'stethoscope';
+  const cap=document.getElementById('dept_cap').value||0;
+  if(!name){toast('Department name required','err');return;}
+  const r=await api('add_department',{name,icon,capacity:parseInt(cap)});
+  if(r.ok){toast('Department added','ok');closeModal('addDeptModal');setTimeout(()=>location.reload(),800);}
+  else toast(r.msg||'Error','err');
+}
+async function deleteDept(id,btn){
+  if(!confirm('Remove this department?'))return;btn.disabled=true;
+  const r=await api('delete_department',{department_id:id});
+  if(r.ok){toast('Removed','ok');btn.closest('.cp-dept-card')?.remove();}
+  else{toast(r.msg||'Error','err');btn.disabled=false;}
+}
+
+/*  Insurance  */
+function connectIns(key,name,full){
+  document.getElementById('conn_ins_key').value=key;document.getElementById('conn_ins_name').value=name;
+  document.getElementById('connInsTitle').textContent='Connect '+name;document.getElementById('conn_ins_ref').value='';
+  openModal('connInsModal');
+}
+async function submitConnectIns(){
+  const key=document.getElementById('conn_ins_key').value;
+  const name=document.getElementById('conn_ins_name').value;
+  const ref=document.getElementById('conn_ins_ref').value;
+  const r=await api('connect_insurance',{provider_key:key,provider_name:name,policy_ref:ref});
+  if(r.ok){closeModal('connInsModal');document.getElementById('ins-status-'+key)?.setAttribute('class','cp-badge cp-badge-success');document.getElementById('ins-status-'+key).textContent='Connected';toast(r.msg||'Connected','ok');setTimeout(()=>location.reload(),1200);}
+  else toast(r.msg||'Error','err');
+}
+async function disconnectIns(key){
+  if(!confirm('Disconnect this insurer?'))return;
+  const r=await api('disconnect_insurance',{provider_key:key});
+  if(r.ok){toast('Disconnected','ok');setTimeout(()=>location.reload(),800);}else toast(r.msg||'Error','err');
+}
+
+/*  Settings  */
+async function saveSettings(){
+  const r=await api('save_settings',{facility_name:document.getElementById('set_fname').value.trim(),phone:document.getElementById('set_phone').value,county:document.getElementById('set_county').value,address:document.getElementById('set_addr').value,website:document.getElementById('set_web').value,emergency_24h:document.getElementById('set_emerg').checked});
+  toast(r.ok?(r.msg||'Settings saved'):(r.msg||'Error'),r.ok?'ok':'err');
+}
+async function changePassword(){
+  const nw=document.getElementById('pw_new').value;
+  const cnf=document.getElementById('pw_confirm').value;
+  if(nw!==cnf){toast('Passwords do not match','err');return;}
+  const r=await api('change_password',{current_password:document.getElementById('pw_current').value,new_password:nw});
+  if(r.ok){toast(r.msg||'Password updated','ok');['pw_current','pw_new','pw_confirm'].forEach(id=>document.getElementById(id).value='');}
+  else toast(r.msg||'Error','err');
+}
+
+/*  Notifications  */
+async function markNotifRead(id){
+  const el=document.getElementById('mn-'+id);if(el)el.style.opacity='0.5';
+  await api('mark_notif_read',{notif_id:id});
+}
+async function markHospNotif(id,el){
+  el.classList.remove('unread');
+  await api('mark_notif_read',{notif_id:id});
+  const dot=el.querySelector('.notif-dot');if(dot)dot.remove();
+}
+async function markAllRead(){
+  await api('mark_all_read');
+  document.querySelectorAll('.notif-item').forEach(el=>el.classList.remove('unread'));
+  document.querySelectorAll('.notif-dot').forEach(d=>d.remove());
+  toast('All marked as read','ok');
+}
+</script>
 </body>
 </html>

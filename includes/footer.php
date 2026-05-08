@@ -43,7 +43,7 @@ $csrf = Security::csrfToken();
           try {
             if (!class_exists('Database')) require_once dirname(__DIR__). '/services/Database.php';
             $db2 = Database::getInstance();
-            $pvs = $db2->fetchAll('SELECT id,name,type FROM providers WHERE is_active=1 AND is_verified=1 ORDER BY rating DESC LIMIT 20');
+            $pvs = $db2->fetchAll("SELECT id+30000 AS id, CONCAT('Dr. ',first_name,' ',last_name) AS name, 'doctor' AS type FROM doctors WHERE is_active=1 AND status='active' LIMIT 10");
             foreach ($pvs as $p) echo '<option value="'.htmlspecialchars($p['id']).'">'.htmlspecialchars($p['name']).' ('.ucfirst($p['type']).')</option>';
           } catch(Exception $e) {}
           ?>
@@ -69,24 +69,28 @@ $csrf = Security::csrfToken();
     <div class="footer-grid">
       <div>
         <div class="footer-logo" style="display:flex;align-items:center;gap:10px">
-          <img src="/assets/images/favicon.png" alt="Planeazzy icon"
-               style="width:90px;height:50px;border-radius:9px;object-fit:contain;background:transparent">
+          <img src="/assets/images/favicon1.png" alt="Planeazzy icon"
+               style="width:auto;height:30px;border-radius:9px;object-fit:contain;background:transparent">
         </div>
-        <p class="footer-desc">Connecting patients with the best healthcare providers in Kenya through technology and transparency.</p>
+        <p class="footer-desc">Connecting patients with the best healthcare providers in Africa through technology and transparency.</p>
+        <p class="footer-desc">Open 7 days a week</p>
         <div class="footer-socials">
-          <a class="footer-social-btn" href="#"><i class="fa-brands fa-x-twitter"></i></a>
-          <a class="footer-social-btn" href="#"><i class="fa-brands fa-instagram"></i></a>
-          <a class="footer-social-btn" href="#"><i class="fa-brands fa-facebook-f"></i></a>
+          <a class="footer-social-btn" href="https://x.com/planeazzy"><i class="fa-brands fa-x-twitter"></i></a>
+          <a class="footer-social-btn" href="https://www.instagram.com/planeazzy?igsh=NGVkdmo0a2FoZGRo"><i class="fa-brands fa-instagram"></i></a>
+          <a class="footer-social-btn" href="https://www.linkedin.com/company/planeazzy/"><i class="fa-brands fa-linkedin"></i></a>
+          <a class="footer-social-btn" href="https://tr.ee/ThJkSKu52X"><i class="fa-brands fa-facebook-f"></i></a>
+          <a class="footer-social-btn" href="https://wa.me/254140117039"><i class="fa-brands fa-whatsapp"></i></a>
+          <a class="footer-social-btn" href="https://planeazzy.com"><i class="fa-solid fa-globe"></i></a>
         </div>
       </div>
       <div><div class="footer-col-title">For Patients</div><ul class="footer-links"><li><a href="/patients/search.php">Search Doctors</a></li><li><a href="/patients/search.php?type=hospital">Medical Centers</a></li><li><a href="/patients/register.php">How it Works</a></li><li><a href="#">FAQ</a></li></ul></div>
-      <div><div class="footer-col-title">For Providers</div><ul class="footer-links"><li><a href="/providers/doctor/register.php">List Your Practice</a></li><li><a href="/providers/clinic/register.php">Clinic Management</a></li><li><a href="/providers/ambulance/register.php">Ambulance Services</a></li><li><a href="#">Support Center</a></li></ul></div>
-      <div><div class="footer-col-title">Legal</div><ul class="footer-links"><li><a href="#">Privacy Policy</a></li><li><a href="#">Terms of Service</a></li><li><a href="#">Cookie Policy</a></li><li><a href="#">Ethics &amp; Compliance</a></li></ul></div>
+      <div><div class="footer-col-title">For Providers</div><ul class="footer-links"><li><a href="/hospital/onboarding/join.php">Register Hospital</a></li><li><a href="/hospital/onboarding/login.php">Hospital Sign In</a></li><li><a href="/hospital/onboarding/join.php?type=doctor">Register as Doctor</a></li><li><a href="mailto:partners@planeazzy.com">Partnership</a></li></ul></div>
+      <div><div class="footer-col-title">Legal &amp; Security</div><ul class="footer-links"><li><a href="/privacy.php">Privacy Policy</a></li><li><a href="/terms.php">Terms of Service</a></li><li><a href="/security.php">Security Vault</a></li><li><a href="/privacy.php#s7">Your Data Rights</a></li></ul></div>
     </div>
     <div class="footer-bottom">
-      <p class="footer-copy">© 2025 Planeazzy Ltd. All rights reserved. Kenya's #1 Healthcare Booking Platform.</p>
+      <p class="footer-copy">© 2026 Planeazzy Ltd. All rights reserved. Africa's #1 Healthcare Booking Platform.</p>
       <div class="footer-contacts">
-        <span class="footer-contact"><i class="fa-solid fa-phone"></i> +254 700 000 000</span>
+        <span class="footer-contact"><i class="fa-solid fa-phone"></i> +254 140 117 039</span>
         <span class="footer-contact"><i class="fa-solid fa-envelope"></i> info@planeazzy.com</span>
       </div>
     </div>
@@ -108,3 +112,4 @@ $csrf = Security::csrfToken();
 </script>
 </body>
 </html>
+

@@ -10,6 +10,8 @@ require_once dirname(__DIR__, 2) . '/config/config.php';
 require_once dirname(__DIR__, 2) . '/services/Security.php';
 require_once dirname(__DIR__, 2) . '/services/Database.php';
 require_once dirname(__DIR__, 2) . '/services/HospitalMailer.php';
+require_once dirname(__DIR__, 2) . '/services/Mailer.php';
+require_once dirname(__DIR__, 2) . '/services/SmsService.php';
 Security::startSession();
 
 function json_out(array $data, int $code = 200): void {
@@ -26,7 +28,7 @@ $body   = json_decode(file_get_contents('php://input'), true) ?? [];
 $action = $body['action'] ?? ($_POST['action'] ?? '');
 $hid    = (int)($_SESSION['hospital_id'] ?? 0);
 
-/* ── Auth check (skip for lang/public actions) ─────────────── */
+/*  Auth check (skip for lang/public actions)  */
 $publicActions = ['set_lang'];
 if (!in_array($action, $publicActions)) {
     if (!$hid || empty($_SESSION['hospital_auth'])) {
@@ -34,10 +36,12 @@ if (!in_array($action, $publicActions)) {
     }
 }
 
-/* ── CSRF check for state-changing actions ─────────────────── */
+/*  CSRF check for state-changing actions  */
 $csrfRequired = ['add_doctor','update_appointment','toggle_service','save_settings',
                   'connect_insurance','disconnect_insurance','add_department',
-                  'delete_department','toggle_department'];
+                  'delete_department','toggle_department',
+                  'update_appointment','reschedule_appointment','delete_doctor','add_billing',
+                  'update_doctor_full','upload_hospital_logo','upload_doctor_avatar'];
 if (in_array($action, $csrfRequired)) {
     $tok = $body['csrf_token'] ?? $_POST['csrf_token'] ?? '';
     if (!Security::verifyCsrf($tok)) {
@@ -53,13 +57,13 @@ try {
 
 switch ($action) {
 
-    /* ── Language ─────────────────────────────────────────── */
+    /*  Language  */
     case 'set_lang':
         $lang = in_array($body['lang'] ?? '', ['en','sw']) ? $body['lang'] : 'en';
         $_SESSION['cp_lang'] = $lang;
         json_out(['ok' => true, 'lang' => $lang]);
 
-    /* ── Notifications ─────────────────────────────────────── */
+    /*  Notifications  */
     case 'mark_notif_read':
         $nid = (int)($body['notif_id'] ?? 0);
         $db->query('UPDATE hospital_notifications SET is_read=1 WHERE id=:n AND hospital_id=:h',
@@ -70,15 +74,15 @@ switch ($action) {
         $db->query('UPDATE hospital_notifications SET is_read=1 WHERE hospital_id=:h', [':h' => $hid]);
         json_out(['ok' => true]);
 
-    /* ── Appointments ──────────────────────────────────────── */
+    /*  Appointments  */
     case 'update_appointment':
         $apptId = (int)($body['appointment_id'] ?? 0);
         $status = $body['status'] ?? '';
+        $reason = trim($body['reason'] ?? '');
         $allowed = ['confirmed','cancelled','completed'];
         if (!$apptId || !in_array($status, $allowed)) {
             json_out(['ok' => false, 'msg' => 'Invalid request']);
         }
-        // Verify appointment belongs to this hospital
         $appt = $db->fetchOne('SELECT * FROM hospital_appointments WHERE id=:id AND hospital_id=:h',
                               [':id' => $apptId, ':h' => $hid]);
         if (!$appt) json_out(['ok' => false, 'msg' => 'Appointment not found']);
@@ -86,17 +90,121 @@ switch ($action) {
         $db->query('UPDATE hospital_appointments SET status=:s WHERE id=:id',
                    [':s' => $status, ':id' => $apptId]);
 
-        // Notify patient by email if confirmed
-        if ($status === 'confirmed' && !empty($appt['patient_email'])) {
-            // Send confirmation email (non-blocking, ignore failure)
-            @HospitalMailer::sendNewBooking(
-                $appt['patient_email'],
-                $db->fetchOne('SELECT facility_name FROM hospital_providers WHERE id=:h', [':h' => $hid])['facility_name'] ?? 'Hospital',
-                (array)$appt,
-                $hid
-            );
+        $facilityName = $db->fetchOne('SELECT facility_name,phone FROM hospital_providers WHERE id=:h',[':h'=>$hid]);
+        $facName  = $facilityName['facility_name'] ?? 'Hospital';
+        $facPhone = $facilityName['phone'] ?? '';
+        $apptDtStr = date('D, M j Y \at g:ia', strtotime($appt['appointment_at']));
+        $patEmail = $appt['patient_email'] ?? '';
+        $patPhone = $appt['patient_phone'] ?? '';
+        $patName  = $appt['patient_name'] ?? 'Patient';
+        $dept     = $appt['department'] ?? '';
+
+        if ($status === 'confirmed') {
+            // Email + SMS patient
+            if ($patEmail) {
+                try { Mailer::sendHospitalConfirmation($patEmail, $patName, $facName, $apptDtStr, $dept, $apptId); } catch(Exception $e) {}
+            }
+            if ($patPhone) {
+                SmsService::sendHospitalAppointmentSms($patPhone, $patName, $facName, $apptDtStr, 'confirmed', $apptId, $dept);
+            }
+            // Hospital in-app notification
+            $db->query('INSERT INTO hospital_notifications(hospital_id,type,title,message) VALUES(:h,"booking","Appointment Confirmed","Confirmed appointment for '.$patName.' on '.$apptDtStr.'")',
+                [':h'=>$hid]);
+            // Patient in-app notification (find patient by email from appointments or patients table)
+            if ($patEmail) {
+                try {
+                    $patRow = $db->fetchOne('SELECT id FROM patients WHERE email=:e',[':e'=>$patEmail]);
+                    if (!$patRow) $patRow = $db->fetchOne('SELECT patient_id AS id FROM appointments WHERE status IN("scheduled","confirmed") AND patient_id IN (SELECT id FROM patients WHERE email=:e) LIMIT 1',[':e'=>$patEmail]);
+                    if ($patRow && !empty($patRow['id'])) {
+                        $db->query('INSERT INTO notifications(patient_id,type,title,message,icon) VALUES(:pid,"appointment","Appointment Confirmed",:msg,"check_circle")',
+                            [':pid'=>$patRow['id'],':msg'=>"Your appointment at $facName on $apptDtStr has been CONFIRMED.".(($dept)?" Dept: $dept":'')]);
+                    }
+                } catch(Exception $ne) {}
+            }
+
+        } elseif ($status === 'cancelled') {
+            // Email + SMS patient
+            if ($patEmail) {
+                try { Mailer::sendHospitalCancellation($patEmail, $patName, $facName, $apptDtStr, $reason); } catch(Exception $e) {}
+            }
+            if ($patPhone) {
+                SmsService::send($patPhone,
+                    "Hi $patName, your appointment at $facName on $apptDtStr has been cancelled.".($reason?" Reason: $reason":'')." Rebook at planeazzy.com",
+                    'hosp_appt_cancelled');
+            }
+            // Patient in-app notification
+            if ($patEmail) {
+                try {
+                    $patRow = $db->fetchOne('SELECT id FROM patients WHERE email=:e',[':e'=>$patEmail]);
+                    if ($patRow) {
+                        $db->query('INSERT INTO notifications(patient_id,type,title,message,icon) VALUES(:pid,"appointment","Appointment Cancelled",:msg,"cancel")',
+                            [':pid'=>$patRow['id'],':msg'=>"Your appointment at $facName on $apptDtStr has been cancelled.".($reason?" Reason: $reason":'')]);
+                    }
+                } catch(Exception $ne) {}
+            }
+        } elseif ($status === 'completed') {
+            // Mark in patient notifications
+            if ($patEmail) {
+                try {
+                    $patRow = $db->fetchOne('SELECT id FROM patients WHERE email=:e',[':e'=>$patEmail]);
+                    if ($patRow) {
+                        $db->query('INSERT INTO notifications(patient_id,type,title,message,icon) VALUES(:pid,"appointment","Appointment Completed",:msg,"task_alt")',
+                            [':pid'=>$patRow['id'],':msg'=>"Your appointment at $facName on $apptDtStr has been marked as completed. We hope you received great care!"]);
+                    }
+                } catch(Exception $ne) {}
+            }
         }
         json_out(['ok' => true, 'status' => $status]);
+
+    /*  Reschedule appointment  */
+    case 'reschedule_appointment':
+        $apptId  = (int)($body['appointment_id'] ?? 0);
+        $newDt   = trim($body['new_datetime'] ?? '');
+        $reason  = trim($body['reason'] ?? '');
+        if (!$apptId || !$newDt) json_out(['ok'=>false,'msg'=>'Appointment ID and new date are required']);
+        $ts = strtotime($newDt);
+        if (!$ts || $ts < time() - 3600) json_out(['ok'=>false,'msg'=>'Please enter a valid future date and time']);
+        $appt = $db->fetchOne('SELECT * FROM hospital_appointments WHERE id=:id AND hospital_id=:h',
+                              [':id'=>$apptId,':h'=>$hid]);
+        if (!$appt) json_out(['ok'=>false,'msg'=>'Appointment not found']);
+        if (in_array($appt['status'],['completed','cancelled'])) json_out(['ok'=>false,'msg'=>'Cannot reschedule this appointment']);
+
+        $oldDtStr = date('D, M j Y at g:ia', strtotime($appt['appointment_at']));
+        $newDtStr = date('D, M j Y at g:ia', $ts);
+        $db->query('UPDATE hospital_appointments SET appointment_at=:dt, status="pending" WHERE id=:id',
+                   [':dt'=>date('Y-m-d H:i:s',$ts), ':id'=>$apptId]);
+
+        $facInfo  = $db->fetchOne('SELECT facility_name,phone FROM hospital_providers WHERE id=:h',[':h'=>$hid]);
+        $facName  = $facInfo['facility_name'] ?? 'Hospital';
+        $patEmail = $appt['patient_email'] ?? '';
+        $patPhone = $appt['patient_phone'] ?? '';
+        $patName  = $appt['patient_name']  ?? 'Patient';
+        $dept     = $appt['department'] ?? '';
+
+        // Email patient
+        if ($patEmail) {
+            try {
+                $emailHtml  = '<p>Dear '.htmlspecialchars($patName).',</p>';
+                $emailHtml .= '<p>Your appointment at <strong>'.htmlspecialchars($facName).'</strong> has been <strong>rescheduled</strong>.</p>';
+                $emailHtml .= '<table style="border-collapse:collapse;margin:12px 0">';
+                $emailHtml .= '<tr><td style="padding:5px 14px 5px 0;color:#64748b;font-size:13px">Previous time:</td><td style="text-decoration:line-through;color:#94a3b8">'.$oldDtStr.'</td></tr>';
+                $emailHtml .= '<tr><td style="padding:5px 14px 5px 0;color:#64748b;font-size:13px">New time:</td><td style="font-weight:700;color:#005ab4">'.$newDtStr.'</td></tr>';
+                if ($dept) $emailHtml .= '<tr><td style="padding:5px 14px 5px 0;color:#64748b;font-size:13px">Department:</td><td>'.htmlspecialchars($dept).'</td></tr>';
+                $emailHtml .= '</table>';
+                if ($reason) $emailHtml .= '<p><strong>Reason:</strong> '.htmlspecialchars($reason).'</p>';
+                Mailer::sendRaw($patEmail, $patName, APP_NAME.' — Appointment Rescheduled', $emailHtml);
+            } catch(Exception $e) {}
+        }
+        // SMS patient
+        if ($patPhone) {
+            SmsService::send($patPhone,
+                "Hi $patName, your appointment at $facName has been rescheduled to $newDtStr.".($reason?" Reason: $reason":'').' Planeazzy',
+                'hosp_reschedule');
+        }
+        // Notification
+        $db->query('INSERT INTO hospital_notifications(hospital_id,type,title,message) VALUES(:h,"booking","Appointment Rescheduled","Rescheduled '.$patName.'\'s appointment to '.$newDtStr.'")',
+            [':h'=>$hid]);
+        json_out(['ok'=>true,'new_datetime'=>$newDtStr]);
 
     case 'get_appointments':
         $filter = $body['filter'] ?? 'all';
@@ -111,7 +219,114 @@ switch ($action) {
         $appts = $db->fetchAll($sql, $params);
         json_out(['ok' => true, 'appointments' => $appts]);
 
-    /* ── Doctors ───────────────────────────────────────────── */
+    /*  Reassign / Assign Doctor to Appointment  */
+    case 'reassign_doctor':
+        $apptId   = (int)($body['appointment_id'] ?? 0);
+        $newDocId = isset($body['doctor_id']) && $body['doctor_id'] !== '' ? (int)$body['doctor_id'] : null;
+        if (!$apptId) json_out(['ok'=>false,'msg'=>'Appointment ID required']);
+
+        $appt = $db->fetchOne(
+            'SELECT * FROM hospital_appointments WHERE id=:id AND hospital_id=:h',
+            [':id'=>$apptId,':h'=>$hid]
+        );
+        if (!$appt) json_out(['ok'=>false,'msg'=>'Appointment not found']);
+        if (in_array($appt['status'],['cancelled'])) json_out(['ok'=>false,'msg'=>'Cannot reassign cancelled appointment']);
+
+        // Get doctor name for notifications
+        $docName = 'Unassigned';
+        $docRow  = null;
+        if ($newDocId) {
+            $docRow = $db->fetchOne(
+                'SELECT name,specialty FROM hospital_doctors WHERE id=:id AND hospital_id=:h AND is_active=1',
+                [':id'=>$newDocId,':h'=>$hid]
+            );
+            if (!$docRow) json_out(['ok'=>false,'msg'=>'Doctor not found or not part of this hospital']);
+            $docName = 'Dr. ' . $docRow['name'];
+        }
+
+        $db->query(
+            'UPDATE hospital_appointments SET doctor_id=:d WHERE id=:id',
+            [':d'=>$newDocId,':id'=>$apptId]
+        );
+
+        $facRow   = $db->fetchOne('SELECT facility_name FROM hospital_providers WHERE id=:h',[':h'=>$hid]);
+        $facName  = $facRow['facility_name'] ?? 'Hospital';
+        $apptDt   = date('D, M j Y at g:i A', strtotime($appt['appointment_at']));
+        $patName  = $appt['patient_name'] ?? 'Patient';
+        $patEmail = $appt['patient_email'] ?? '';
+        $patPhone = $appt['patient_phone'] ?? '';
+        $dept     = $appt['department'] ?? '';
+
+        // Email patient with new doctor info
+        if ($patEmail) {
+            try {
+                Mailer::sendHospitalConfirmation($patEmail, $patName, $facName, $apptDt, $dept, $apptId, $newDocId ? $docName : '');
+            } catch(Exception $e) { error_log('Reassign email: '.$e->getMessage()); }
+        }
+
+        // SMS patient
+        if ($patPhone) {
+            $smsMsg = $newDocId
+                ? "Hi $patName, your appointment at $facName on $apptDt has been assigned to $docName. Login to chat: ".APP_URL
+                : "Hi $patName, your appointment at $facName on $apptDt has been updated (doctor reassigned). Login at ".APP_URL;
+            SmsService::send($patPhone, $smsMsg, 'hosp_reassign');
+        }
+
+        // Auto-message in appointment chat
+        if ($apptId) {
+            try {
+                $db->query("CREATE TABLE IF NOT EXISTS appointment_messages (
+                    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                    appt_id INT UNSIGNED NOT NULL,
+                    appt_type ENUM('hospital','standard') NOT NULL DEFAULT 'hospital',
+                    sender_type ENUM('patient','hospital','doctor') NOT NULL,
+                    sender_id INT UNSIGNED NOT NULL,
+                    sender_name VARCHAR(120) NOT NULL,
+                    avatar_path VARCHAR(255) DEFAULT NULL,
+                    message TEXT NOT NULL,
+                    is_read TINYINT(1) NOT NULL DEFAULT 0,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (id), KEY idx_appt (appt_id, appt_type, created_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+                $autoMsg = $newDocId
+                    ? "Your appointment has been assigned to $docName".($docRow&&$docRow['specialty']?' ('.$docRow['specialty'].')':'').". You can use this chat to communicate directly with your care team. We look forward to seeing you on $apptDt."
+                    : "The doctor assignment for your appointment on $apptDt has been updated. A new doctor will be confirmed shortly. Please use this chat if you have questions.";
+                $db->insert(
+                    'INSERT INTO appointment_messages (appt_id,appt_type,sender_type,sender_id,sender_name,message)
+                     VALUES (:aid,"hospital","hospital",:sid,:sn,:msg)',
+                    [':aid'=>$apptId,':sid'=>$hid,':sn'=>$facName,':msg'=>$autoMsg]
+                );
+            } catch(Exception $e) { error_log('Reassign chat msg: '.$e->getMessage()); }
+        }
+
+        // In-app patient notification
+        if ($patEmail) {
+            try {
+                $patRow = $db->fetchOne('SELECT id FROM patients WHERE email=:e',[':e'=>$patEmail]);
+                if ($patRow) {
+                    $notifMsg = $newDocId
+                        ? "Your appointment at $facName on $apptDt has been assigned to $docName."
+                        : "The doctor for your appointment at $facName on $apptDt has been updated.";
+                    $db->query(
+                        'INSERT INTO notifications(patient_id,type,title,message,icon) VALUES(:pid,"appointment","Doctor Assignment Updated",:msg,"person")',
+                        [':pid'=>$patRow['id'],':msg'=>$notifMsg]
+                    );
+                }
+            } catch(Exception $ne) {}
+        }
+
+        // Hospital notification
+        try {
+            $db->query(
+                'INSERT INTO hospital_notifications(hospital_id,type,title,message) VALUES(:h,"booking",:t,:m)',
+                [':h'=>$hid,':t'=>'Doctor Reassigned',
+                 ':m'=>"$patName appointment on $apptDt reassigned to $docName. Patient notified."]
+            );
+        } catch(Exception $e) {}
+
+        json_out(['ok'=>true,'msg'=>"Appointment assigned to $docName. Patient has been notified.",'doctor_name'=>$docName]);
+
+    /*  Doctors  */
     case 'add_doctor':
         $dname   = trim(strip_tags($body['name'] ?? ''));
         $demail  = filter_var($body['email'] ?? '', FILTER_VALIDATE_EMAIL);
@@ -161,7 +376,7 @@ switch ($action) {
         );
         json_out(['ok' => true, 'doctors' => $doctors]);
 
-    /* ── Departments ───────────────────────────────────────── */
+    /*  Departments  */
     case 'add_department':
         $dname = trim(strip_tags($body['name'] ?? ''));
         $icon  = preg_replace('/[^a-z_]/', '', $body['icon'] ?? 'stethoscope');
@@ -191,7 +406,7 @@ switch ($action) {
                    [':id' => $did, ':h' => $hid]);
         json_out(['ok' => true]);
 
-    /* ── Services ──────────────────────────────────────────── */
+    /*  Services  */
     case 'toggle_service':
         $key     = preg_replace('/[^a-z_]/', '', $body['service_key'] ?? '');
         $enabled = (bool)($body['enabled'] ?? false);
@@ -208,24 +423,25 @@ switch ($action) {
                    [':s' => json_encode($services), ':id' => $hid]);
         json_out(['ok' => true, 'services' => $services]);
 
-    /* ── Insurance ─────────────────────────────────────────── */
-    case 'connect_insurance':
-        $pkey  = preg_replace('/[^a-z]/', '', strtolower($body['provider_key'] ?? ''));
-        $pname = trim(strip_tags($body['provider_name'] ?? ''));
-        $ref   = trim(strip_tags($body['policy_ref'] ?? ''));
+    /*  Insurance  */
+        case 'connect_insurance':
+        $pkey     = preg_replace('/[^a-z_]/', '', strtolower($body['provider_key'] ?? ''));
+        $pname    = trim(strip_tags($body['provider_name'] ?? ''));
+        $ref      = trim(strip_tags($body['policy_ref']    ?? ''));
         if (!$pkey || !$pname) json_out(['ok' => false, 'msg' => 'Provider key and name are required']);
-
+        if (!$ref)             json_out(['ok' => false, 'msg' => 'Policy reference number is required']);
         $db->query(
-            'INSERT INTO hospital_insurance (hospital_id, provider_key, provider_name, status, policy_ref, connected_at)
-             VALUES (:h, :pk, :pn, "connected", :ref, NOW())
-             ON DUPLICATE KEY UPDATE status="connected", policy_ref=:ref, connected_at=NOW()',
-            [':h' => $hid, ':pk' => $pkey, ':pn' => $pname, ':ref' => $ref ?: null]
+            'INSERT INTO hospital_insurance (hospital_id, provider_key, provider_name, status, policy_ref, submitted_at)
+             VALUES (:h, :pk, :pn, "pending", :ref, NOW())
+             ON DUPLICATE KEY UPDATE status="pending", policy_ref=:ref2, submitted_at=NOW(), verified_at=NULL, connected_at=NULL',
+            [':h'=>$hid, ':pk'=>$pkey, ':pn'=>$pname, ':ref'=>$ref, ':ref2'=>$ref]
         );
         $db->query(
             'INSERT INTO hospital_notifications (hospital_id,type,title,message) VALUES (:h,"insurance",:t,:m)',
-            [':h'=>$hid, ':t'=>"$pname Connected", ':m'=>"Insurance provider $pname has been successfully connected."]
+            [':h'=>$hid, ':t'=>"$pname — Pending Verification",
+             ':m'=>"Your $pname insurance connection (Policy: $ref) has been submitted. Typically approved within 24 hours."]
         );
-        json_out(['ok' => true, 'msg' => "$pname connected successfully"]);
+        json_out(['ok' => true, 'msg' => "$pname submitted for verification. You will be notified within 24 hours."]);
 
     case 'disconnect_insurance':
         $pkey = preg_replace('/[^a-z]/', '', strtolower($body['provider_key'] ?? ''));
@@ -237,7 +453,7 @@ switch ($action) {
         $ins = $db->fetchAll('SELECT * FROM hospital_insurance WHERE hospital_id=:h ORDER BY provider_name', [':h' => $hid]);
         json_out(['ok' => true, 'insurance' => $ins]);
 
-    /* ── Settings ──────────────────────────────────────────── */
+    /*  Settings  */
     case 'save_settings':
         $fname  = trim(strip_tags($body['facility_name'] ?? ''));
         $phone  = preg_replace('/[^0-9+\-\s]/', '', $body['phone'] ?? '');
@@ -268,7 +484,7 @@ switch ($action) {
         $db->query('UPDATE hospital_providers SET password_hash=:h WHERE id=:id', [':h' => $newHash, ':id' => $hid]);
         json_out(['ok' => true, 'msg' => 'Password updated successfully']);
 
-    /* ── Analytics / Stats ─────────────────────────────────── */
+    /*  Analytics / Stats  */
     case 'get_stats':
         $today_count = $db->fetchOne(
             'SELECT COUNT(*) c FROM hospital_appointments WHERE hospital_id=:h AND DATE(appointment_at)=CURDATE()',
@@ -298,7 +514,7 @@ switch ($action) {
             'docs_on'        => (int)$docs_on,
         ]]);
 
-    /* ── Billings ──────────────────────────────────────────── */
+    /*  Billings  */
     case 'get_billings':
         $bills = $db->fetchAll(
             'SELECT * FROM hospital_billings WHERE hospital_id=:h ORDER BY billed_at DESC LIMIT 50',
@@ -350,6 +566,49 @@ switch ($action) {
         $db->query('UPDATE hospital_doctors SET is_active=0 WHERE id=:id AND hospital_id=:h',
                    [':id'=>$did,':h'=>$hid]);
         json_out(['ok'=>true]);
+
+    /*  Rich doctor profile update  */
+    case 'update_doctor_full':
+        $did      = (int)($body['doctor_id'] ?? 0);
+        $name     = trim($body['name'] ?? '');
+        if (!$did || !$name) json_out(['ok'=>false,'msg'=>'Doctor ID and name required']);
+        // Verify belongs to hospital
+        $checkDoc = $db->fetchOne('SELECT id FROM hospital_doctors WHERE id=:id AND hospital_id=:h',[':id'=>$did,':h'=>$hid]);
+        if (!$checkDoc) json_out(['ok'=>false,'msg'=>'Doctor not found']);
+        $avail = !empty($body['availability']) ? json_encode($body['availability']) : null;
+        $db->query(
+            'UPDATE hospital_doctors SET name=:n, specialty=:sp, email=:em, phone=:ph,
+             kmpdc_licence=:lic, bio=:bio, gender=:gen, languages=:lang,
+             years_exp=:ye, consult_fee=:fee, education=:edu,
+             availability=:av, accepts_walkin=:aw, accepts_tele=:at2, status=:st
+             WHERE id=:id AND hospital_id=:h',
+            [':n'=>$name,':sp'=>$body['specialty']??null,':em'=>$body['email']??null,
+             ':ph'=>$body['phone']??null,':lic'=>$body['kmpdc_licence']??null,
+             ':bio'=>$body['bio']??null,':gen'=>$body['gender']??null,
+             ':lang'=>$body['languages']??'English',':ye'=>(int)($body['years_exp']??0),
+             ':fee'=>(float)($body['consult_fee']??0),':edu'=>$body['education']??null,
+             ':av'=>$avail,':aw'=>(int)!empty($body['accepts_walkin']),
+             ':at2'=>(int)!empty($body['accepts_tele']),
+             ':st'=>in_array($body['status']??'',['on-duty','off-duty','on-break','suspended'])?$body['status']:'off-duty',
+             ':id'=>$did,':h'=>$hid]
+        );
+        json_out(['ok'=>true,'msg'=>'Doctor profile updated']);
+
+    /*  Upload hospital logo  */
+    case 'upload_hospital_logo':
+        // handled via upload endpoint - just update path
+        $path = trim($body['logo_path'] ?? '');
+        if (!$path) json_out(['ok'=>false,'msg'=>'No path provided']);
+        $db->query('UPDATE hospital_providers SET logo_path=:p WHERE id=:h',[':p'=>$path,':h'=>$hid]);
+        json_out(['ok'=>true,'logo_path'=>$path]);
+
+    /*  Get single doctor  */
+    case 'get_doctor':
+        $did = (int)($body['doctor_id'] ?? 0);
+        if (!$did) json_out(['ok'=>false,'msg'=>'Invalid ID']);
+        $doc = $db->fetchOne('SELECT d.*,dep.name dept_name FROM hospital_doctors d LEFT JOIN hospital_departments dep ON dep.id=d.department_id WHERE d.id=:id AND d.hospital_id=:h',[':id'=>$did,':h'=>$hid]);
+        if (!$doc) json_out(['ok'=>false,'msg'=>'Not found']);
+        json_out(['ok'=>true,'doctor'=>$doc]);
 
     default:
         json_out(['ok' => false, 'msg' => 'Unknown action'], 400);

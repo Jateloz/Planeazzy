@@ -35,6 +35,8 @@ include __DIR__ . '/_head.php';
   </div>
 </header>
 
+
+<div style="max-width:960px;margin:12px auto;padding:0 24px"><a href="/" style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:#64748b;text-decoration:none;transition:color .15s" onmouseover="this.style.color='#1978e5'" onmouseout="this.style.color='#64748b'"><i class="fa-solid fa-arrow-left" style="font-size:11px"></i> Back to Homepage</a></div>
 <main id="overview">
 <section style="background:linear-gradient(180deg,#f7f9fb 0%,#f2f4f6 100%);position:relative;overflow:hidden">
   <div style="position:absolute;top:-100px;left:-100px;width:400px;height:400px;background:rgba(0,90,180,.05);border-radius:50%;filter:blur(100px);pointer-events:none"></div>

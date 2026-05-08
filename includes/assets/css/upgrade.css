@@ -1,0 +1,175 @@
+/* 
+   PLANEAZZY UPGRADE CSS — v2 Improvements
+   No emojis. Font Awesome icons throughout.
+   Mobile-first, professional.
+    */
+
+/*  5-Step Booking Modal  */
+.bk-steps{display:flex;align-items:center;gap:0;padding:16px 20px;border-bottom:1px solid var(--slate-100);overflow-x:auto;scrollbar-width:none}
+.bk-steps::-webkit-scrollbar{display:none}
+.bk-step-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;position:relative;min-width:52px}
+.bk-step-item:not(:last-child)::after{content:'';position:absolute;top:12px;left:50%;width:100%;height:2px;background:var(--slate-200);z-index:0}
+.bk-step-item.done::after{background:var(--primary)}
+.bk-dot{width:24px;height:24px;border-radius:50%;background:var(--slate-200);display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:800;color:#fff;z-index:1;position:relative;transition:background .25s}
+.bk-step-item.active .bk-dot{background:var(--primary);box-shadow:0 0 0 3px rgba(25,120,229,.18)}
+.bk-step-item.done .bk-dot{background:var(--green)}
+.bk-step-lbl{font-size:.6rem;font-weight:600;color:var(--slate-400);text-align:center;white-space:nowrap}
+.bk-step-item.active .bk-step-lbl{color:var(--primary);font-weight:700}
+.bk-step-item.done .bk-step-lbl{color:var(--green)}
+
+/* Step panels */
+.bk-panel{display:none;padding:18px 20px}
+.bk-panel.active{display:block}
+
+/* Reason dropdown */
+.bk-reason-select{width:100%;padding:11px 14px;border:1.5px solid var(--slate-200);border-radius:10px;font-family:inherit;font-size:.9375rem;color:var(--slate-900);outline:none;background:#fff;transition:border-color .2s}
+.bk-reason-select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(25,120,229,.08)}
+
+/* Calendar */
+.bk-cal-wrap{background:var(--slate-50);border-radius:12px;padding:14px}
+.bk-cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.bk-cal-nav-btn{width:32px;height:32px;border:1px solid var(--slate-200);border-radius:8px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--slate-500);font-size:.75rem;transition:all .15s}
+.bk-cal-nav-btn:hover{border-color:var(--primary);color:var(--primary)}
+.bk-cal-month{font-size:.875rem;font-weight:700;color:var(--slate-900)}
+.bk-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.bk-cal-dh{font-size:.625rem;font-weight:700;color:var(--slate-400);text-align:center;padding:3px 0;text-transform:uppercase}
+.bk-cal-d{aspect-ratio:1;border:none;border-radius:7px;font-size:.8rem;font-weight:500;cursor:pointer;background:none;color:var(--slate-600);transition:all .15s;position:relative}
+.bk-cal-d:hover:not(:disabled):not(.empty){background:rgba(25,120,229,.08);color:var(--primary)}
+.bk-cal-d.today{font-weight:800;background:rgba(25,120,229,.06);color:var(--primary)}
+.bk-cal-d.selected{background:var(--primary)!important;color:#fff!important;font-weight:700}
+.bk-cal-d:disabled,.bk-cal-d.past{color:var(--slate-200)!important;cursor:not-allowed}
+.bk-cal-d.avail::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--green)}
+.bk-cal-d.selected::after{background:rgba(255,255,255,.7)}
+.bk-hint-bar{background:rgba(25,120,229,.06);border:1px solid rgba(25,120,229,.15);border-radius:8px;padding:8px 12px;font-size:.75rem;font-weight:600;color:var(--primary);display:flex;align-items:center;gap:7px;margin-bottom:12px}
+.bk-hint-bar i{font-size:.8rem;flex-shrink:0}
+
+/* Time slots */
+.bk-period-lbl{font-size:.6875rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--slate-400);margin:12px 0 7px}
+.bk-slots-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+@media(min-width:420px){.bk-slots-grid{grid-template-columns:repeat(4,1fr)}}
+.bk-slot{padding:8px 4px;border:1.5px solid var(--slate-200);border-radius:9px;font-size:.78rem;font-weight:600;cursor:pointer;background:#fff;color:var(--slate-700);transition:all .15s;text-align:center;line-height:1.3}
+.bk-slot:hover:not(:disabled){border-color:var(--primary);color:var(--primary);background:rgba(25,120,229,.05)}
+.bk-slot.selected{border-color:var(--primary);background:var(--primary);color:#fff}
+.bk-slot:disabled{opacity:.4;cursor:not-allowed;text-decoration:line-through}
+
+/* Visit type toggles */
+.bk-type-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.bk-type-btn{padding:14px 10px;border:2px solid var(--slate-200);border-radius:12px;background:#fff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:7px;transition:all .15s;font-weight:600;font-size:.875rem;color:var(--slate-700)}
+.bk-type-btn i{font-size:1.4rem;color:var(--slate-400);transition:color .15s}
+.bk-type-btn:hover{border-color:var(--primary);color:var(--primary)}
+.bk-type-btn:hover i{color:var(--primary)}
+.bk-type-btn.selected{border-color:var(--primary);background:rgba(25,120,229,.06);color:var(--primary)}
+.bk-type-btn.selected i{color:var(--primary)}
+
+/* Summary */
+.bk-summary{background:linear-gradient(135deg,rgba(25,120,229,.04),rgba(13,148,136,.04));border:1.5px solid rgba(25,120,229,.15);border-radius:12px;overflow:hidden;margin-bottom:14px}
+.bk-summary-row{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;font-size:.8125rem}
+.bk-summary-row+.bk-summary-row{border-top:1px solid rgba(25,120,229,.08)}
+.bk-sum-lbl{color:var(--slate-500);font-weight:500;display:flex;align-items:center;gap:6px}
+.bk-sum-lbl i{font-size:.75rem;width:14px;text-align:center;color:var(--primary)}
+.bk-sum-val{font-weight:700;color:var(--slate-900)}
+
+/* Success screen */
+.bk-success{text-align:center;padding:28px 20px}
+.bk-success-icon{width:72px;height:72px;border-radius:50%;background:rgba(22,163,74,.1);display:inline-flex;align-items:center;justify-content:center;font-size:1.8rem;color:var(--green);margin:0 auto 16px;animation:popIn .4s cubic-bezier(.34,1.56,.64,1)}
+@keyframes popIn{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+.bk-ref{display:inline-block;background:var(--slate-100);border-radius:8px;padding:7px 18px;font-family:monospace;font-size:1rem;font-weight:800;letter-spacing:.12em;color:var(--primary);margin:8px 0}
+
+/* Modal footer nav */
+.bk-modal-footer{padding:12px 20px;border-top:1px solid var(--slate-100);display:flex;gap:8px;justify-content:flex-end;background:var(--slate-50);border-radius:0 0 20px 20px;position:sticky;bottom:0}
+
+/*  Feedback / Rating Modal  */
+.fb-stars{display:flex;gap:10px;justify-content:center;margin:14px 0}
+.fb-star{font-size:2rem;cursor:pointer;color:var(--slate-300);transition:color .15s,transform .15s}
+.fb-star:hover,.fb-star.lit{color:#f59e0b;transform:scale(1.15)}
+.fb-label{text-align:center;font-size:.8125rem;color:var(--slate-500);height:20px;margin-bottom:6px;font-weight:600;transition:color .15s}
+
+/*  Doctor Portal — Document Upload  */
+.doc-upload-item{display:flex;align-items:center;gap:12px;padding:13px 14px;border:1.5px solid var(--slate-200);border-radius:12px;background:#fff;cursor:pointer;transition:all .15s;margin-bottom:8px}
+.doc-upload-item:hover{border-color:var(--primary);background:rgba(25,120,229,.03)}
+.doc-upload-item.uploaded{border-color:var(--green);background:rgba(22,163,74,.04)}
+.doc-upload-icon{width:40px;height:40px;border-radius:10px;background:var(--slate-100);display:flex;align-items:center;justify-content:center;font-size:1rem;color:var(--slate-500);flex-shrink:0}
+.doc-upload-item.uploaded .doc-upload-icon{background:rgba(22,163,74,.1);color:var(--green)}
+.doc-upload-info{flex:1;min-width:0}
+.doc-upload-name{font-size:.875rem;font-weight:700;color:var(--slate-900)}
+.doc-upload-desc{font-size:.75rem;color:var(--slate-400);margin-top:1px}
+.doc-upload-status{font-size:.6875rem;font-weight:700;padding:2px 8px;border-radius:20px}
+.doc-upload-status.req{background:rgba(220,38,38,.08);color:#dc2626}
+.doc-upload-status.opt{background:var(--slate-100);color:var(--slate-500)}
+.doc-upload-status.done{background:rgba(22,163,74,.1);color:var(--green)}
+.doc-upload-action{font-size:.75rem;font-weight:600;color:var(--primary);white-space:nowrap;flex-shrink:0}
+.doc-uploaded-list{display:flex;flex-direction:column;gap:5px;margin-top:8px}
+.doc-tag{display:flex;align-items:center;gap:8px;background:var(--slate-50);border:1px solid var(--slate-200);border-radius:7px;padding:6px 10px;font-size:.75rem}
+.doc-tag i{color:var(--primary);font-size:.8rem}
+.doc-tag-name{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc-tag-size{color:var(--slate-400)}
+.doc-tag-rm{background:none;border:none;cursor:pointer;color:var(--slate-400);padding:2px;font-size:.75rem}
+.doc-tag-rm:hover{color:var(--red)}
+
+/*  Location / Geofence  */
+.geo-map-box{background:linear-gradient(135deg,#f0f8ff,#f0fdf4);border:1px solid var(--slate-200);border-radius:12px;height:130px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px}
+.geo-map-box i{font-size:2rem;color:var(--slate-300)}
+.geo-map-box span{font-size:.75rem;color:var(--slate-400);font-weight:500}
+.geo-coords{font-size:.6875rem;color:var(--primary);font-weight:600}
+
+/*  Fee display badge  */
+.fee-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(25,120,229,.06);border:1px solid rgba(25,120,229,.15);border-radius:10px;padding:10px 16px}
+.fee-badge-val{font-size:1.375rem;font-weight:900;color:var(--primary)}
+.fee-badge-lbl{font-size:.75rem;color:var(--slate-500)}
+.fee-hospital-note{font-size:.75rem;color:var(--slate-400);font-style:italic;display:flex;align-items:center;gap:5px}
+
+/*  Notification badge dot  */
+.notif-unread-dot{width:8px;height:8px;border-radius:50%;background:var(--primary);flex-shrink:0;margin-top:4px}
+
+/*  Mobile improvements  */
+@media(max-width:768px){
+  .modal-box{max-width:100%!important;margin:0!important;border-radius:20px 20px 0 0!important;position:fixed!important;bottom:0!important;left:0!important;right:0!important;max-height:92vh!important}
+  .modal-ov{align-items:flex-end!important;padding:0!important}
+  .bk-modal-footer{border-radius:0!important}
+  .bk-type-grid{grid-template-columns:1fr 1fr}
+  .bk-slots-grid{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:480px){
+  .bk-step-lbl{display:none}
+  .bk-steps{padding:12px 14px}
+  .bk-panel{padding:14px 14px}
+}
+
+/*  Professional mobile nav improvements  */
+@media(max-width:768px){
+  .pub-nav{display:none!important}
+  .pz-hdr-inner{padding:0 14px!important}
+  .page-content{padding:14px!important}
+}
+
+/*  Star rating display on provider cards  */
+.provider-rating-row{display:flex;align-items:center;gap:4px;font-size:.7rem;font-weight:700;color:#d97706}
+.provider-rating-row i{font-size:.65rem}
+
+/*  Availability toggle  */
+.avail-toggle-row{display:flex;align-items:center;gap:12px;padding:13px 16px;background:#fff;border:1px solid var(--slate-200);border-radius:12px;margin-bottom:12px}
+.avail-toggle-info{flex:1}
+.avail-toggle-title{font-size:.875rem;font-weight:700}
+.avail-toggle-sub{font-size:.75rem;color:var(--slate-400);margin-top:1px}
+
+/*  Danger zone  */
+.danger-zone-box{margin-top:20px;padding:18px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:12px}
+.danger-zone-box h3{font-size:.875rem;font-weight:800;color:#991b1b;margin-bottom:6px;display:flex;align-items:center;gap:7px}
+.danger-zone-box p{font-size:.8125rem;color:#7f1d1d;line-height:1.6;margin-bottom:12px}
+
+/*  Schedule day editor  */
+.sched-day-row{display:flex;align-items:center;gap:10px;padding:11px 14px;background:#fff;border:1px solid var(--slate-200);border-radius:10px;flex-wrap:wrap;gap:8px}
+.sched-day-name{font-size:.875rem;font-weight:700;min-width:90px}
+.sched-time-wrap{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sched-time-wrap input[type=time]{padding:6px 10px;border:1.5px solid var(--slate-200);border-radius:8px;font-size:.8125rem;font-family:inherit;outline:none;width:120px}
+.sched-time-wrap input[type=time]:focus{border-color:var(--primary)}
+.sched-off-row{opacity:.45;pointer-events:none}
+
+/*  Mobile sidebar fab improvement  */
+.mob-fab{position:fixed;bottom:20px;right:16px;width:48px;height:48px;border-radius:50%;background:var(--primary);color:#fff;border:none;box-shadow:0 4px 14px rgba(25,120,229,.4);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:300;transition:transform .15s}
+.mob-fab:active{transform:scale(.93)}
+@media(min-width:769px){.mob-fab{display:none!important}}
+
+/*  Search results improvements  */
+.result-fee-note{font-size:.6875rem;color:var(--slate-400);font-style:italic}
+.result-fee-private{font-size:.875rem;font-weight:800;color:var(--primary)}

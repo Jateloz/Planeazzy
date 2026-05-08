@@ -57,9 +57,12 @@ include __DIR__ . '/_head.php';
 <div class="cp-progress-rail"><div class="cp-progress-fill" style="width:77%"></div></div>
 
 <header class="cp-topnav">
-  <a href="/hospital/onboarding/join.php" class="cp-topnav-brand" data-en="Clinical Precision" data-sw="Usahihi wa Kliniki">Clinical Precision</a>
+  <a href="\hospital\onboarding\profile.php" class="cp-topnav-brand" data-en="Clinical Precision" data-sw="Usahihi wa Kliniki">Clinical Precision</a>
   <div class="cp-topnav-actions">
-    <button class="cp-lang-btn" id="langToggle"><span class="material-symbols-outlined" style="font-size:15px">language</span><span id="langLabel">SW</span></button>
+    <button class="cp-lang-btn" onclick="history.back()" style="cursor:pointer">
+  <span class="material-symbols-outlined" style="font-size:18px">arrow_back</span>
+  <span>Back</span>
+</button>
   </div>
 </header>
 

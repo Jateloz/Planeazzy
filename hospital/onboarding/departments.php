@@ -42,6 +42,19 @@ include __DIR__ . '/_head.php';
 .act-layout{max-width:1100px;margin:0 auto;padding:40px 40px 60px}
 .act-grid{display:grid;grid-template-columns:240px 1fr;gap:40px;align-items:start}
 .dept-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 48px;
+}
+
+/* Stack them on tablets and phones */
+@media (max-width: 850px) {
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+}
 @media(max-width:900px){.act-grid{grid-template-columns:1fr}.dept-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.dept-grid{grid-template-columns:1fr}}
 </style>
@@ -53,9 +66,7 @@ include __DIR__ . '/_head.php';
 <header class="cp-topnav">
   <a href="/hospital/onboarding/join.php" class="cp-topnav-brand" data-en="Clinical Precision" data-sw="Usahihi wa Kliniki">Clinical Precision</a>
   <div class="cp-topnav-actions">
-    <a href="#" class="cp-topnav-link" data-en="Setup Guide" data-sw="Mwongozo wa Usanidi">Setup Guide</a>
-    <a href="#" class="cp-topnav-link" data-en="Support" data-sw="Msaada">Support</a>
-    <button class="cp-lang-btn" id="langToggle"><span class="material-symbols-outlined" style="font-size:15px">language</span><span id="langLabel">SW</span></button>
+    <a href="/hospital/onboarding/profile.php" class="cp-topnav-link" data-en="Back" data-sw="Mwongozo wa Usanidi">Back</a>
   </div>
 </header>
 
@@ -81,7 +92,7 @@ include __DIR__ . '/_head.php';
         [4,'settings_suggest','Appointments','Miadi',false,false],
       ] as [$n,$ic,$en,$sw,$active,$done]): ?>
       <div class="cp-setup-step <?=$active?'active':($done?'done':'')?>">
-        <div class="cp-setup-step-num"><?=$done?'✓':$n?></div>
+        <div class="cp-setup-step-num"><?=$done?'':$n?></div>
         <div>
           <div style="font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:<?=$active?'var(--cp-primary)':'var(--cp-outline)'?>;margin-bottom:2px"
                data-en="Step <?=$n?>" data-sw="Hatua <?=$n?>">Step <?=$n?></div>
@@ -157,7 +168,7 @@ include __DIR__ . '/_head.php';
       </section>
 
       <!-- Feature cards -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:48px">
+      <div class="feature-grid">
         <?php foreach([
           ['clinical_notes','Automated Roster','Roster ya Kiotomatiki','Clinical Precision handles overlapping shifts and emergency on-call rotations automatically.','Clinical Precision inashughulikia zamu zinazoingiliana na mzunguko wa dharura wa simu kiotomatiki.'],
           ['verified_user','Board Verification','Uthibitisho wa Bodi','Medical license numbers are cross-referenced with national medical boards for instant credentialing.','Nambari za leseni za matibabu zinarejelewa na bodi za kitaifa za matibabu.'],

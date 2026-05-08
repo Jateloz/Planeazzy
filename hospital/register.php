@@ -13,7 +13,8 @@ $csrf = Security::csrfToken();
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Register your hospital or clinic on Planeazzy — Kenya's leading healthcare platform.">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231978e5'/><text y='72' font-size='65' text-anchor='middle' x='50' fill='white'>+</text></svg>">
+  <link rel="icon" type="image/png" href="/assets/images/favicon.png">
+  <link rel="apple-touch-icon" href="/assets/images/favicon.png"><rect width='100' height='100' rx='20' fill='%231978e5'/><text y='72' font-size='65' text-anchor='middle' x='50' fill='white'>+</text></svg>">
   <title>Register Hospital — Planeazzy</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
   <link rel="stylesheet" href="/assets/css/hospital.css">
@@ -165,7 +166,7 @@ async function doHospitalRegister() {
   if (pwd !== pwdc) { HUI.alert('err', 'Passwords do not match.', 'hAlertBox'); return; }
   if (pwd.length < 8) { HUI.alert('err', 'Password must be at least 8 characters.', 'hAlertBox'); return; }
 
-  const r = await hPost('/api/provider/register.php', {
+  const r = await hPost('/api/hospital/register.php', {
     csrf_token:     document.getElementById('hCsrf')?.value,
     name:           document.getElementById('hRegName')?.value?.trim(),
     email:          document.getElementById('hRegEmail')?.value?.trim(),

@@ -23,6 +23,7 @@ $services_list = [
   ['orthopedics','Orthopedics','Mifupa'],
   ['emergency','Emergency & Critical Care','Dharura'],
   ['pharmacy','Pharmacy','Duka la Dawa'],
+  ['other','Other','zingine'],
 ];
 $counties = ['Nairobi','Mombasa','Kisumu','Nakuru','Kiambu','Machakos','Kajiado','Uasin Gishu','Meru','Nyeri','Kisii','Kakamega','Garissa','Kilifi','Other'];
 
@@ -81,6 +82,10 @@ include __DIR__ . '/_head.php';
       <span style="font-size:.6875rem;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:var(--cp-primary)"
             data-en="Step 02 of 03" data-sw="Hatua 02 ya 03">Step 02 of 03</span>
       <div style="flex:1;height:1px;background:rgba(193,198,213,.3)"></div>
+          <p style="text-align:center;margin-top:18px;font-size:.8125rem;color:var(--cp-on-surface-var)">
+      <a href="/hospital/onboarding/signup.php" style="color:var(--cp-primary);font-weight:600"
+         data-en="Back" data-sw="← Rudi Usajili">← Back</a>
+    </p>
     </div>
     <h1 class="cp-h1" style="margin-bottom:10px" data-en="Organization Profile Setup" data-sw="Usanidi wa Wasifu wa Shirika">Organization Profile Setup</h1>
     <p class="cp-body-lg" style="margin-bottom:36px;max-width:580px"

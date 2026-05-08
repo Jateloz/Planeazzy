@@ -3,7 +3,7 @@
  * Planeazzy v5 — includes/header.php
  * Unique visual header for each portal:
  *   - Patient / Public (blue/teal Planeazzy brand)
- *   - Hospital (Clinical Precision — deep teal/slate)
+ *   - Hospital (Planeazzy Hospital Portal)
  *   - Provider (teal accent)
  */
 if (!defined('APP_NAME')) require_once dirname(__DIR__) . '/config/config.php';
@@ -38,7 +38,7 @@ if ($isPatient) {
 }
 $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
 $isHospitalPage = strpos($requestUri, '/hospital/') !== false;
-$isProviderPage = strpos($requestUri, '/providers/') !== false;
+$isProviderPage = strpos($requestUri, '/hospital/') !== false;
 ?>
 <!DOCTYPE html>
 <html lang="en" id="htmlRoot">
@@ -47,17 +47,18 @@ $isProviderPage = strpos($requestUri, '/providers/') !== false;
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Planeazzy — Your direct path to better healthcare in Kenya.">
   <meta name="theme-color" content="<?= $isHospitalPage ? '#005ab4' : '#1978e5' ?>">
-  <link rel="icon" type="image/svg+xml" href="/assets/images/favicon1.png">
-  <link rel="apple-touch-icon" href="/assets/images/favicon1.png">
+  <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.png">
+  <link rel="apple-touch-icon" href="/assets/images/favicon.png">
   <title><?= $pageTitle ?></title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
   <link rel="stylesheet" href="/assets/css/app.css">
+  <link rel="stylesheet" href="/assets/css/upgrade.css">
 <style>
-/* ══════════════════════════════════════════════════
+/* 
    UNIFIED HEADER — Patient, Hospital & Provider
-══════════════════════════════════════════════════ */
+ */
 
-/* ── Base reset for all headers ──────────────────── */
+/*  Base reset for all headers  */
 .pz-hdr {
   position: sticky; top: 0; z-index: 200;
   width: 100%;
@@ -106,7 +107,7 @@ $isProviderPage = strpos($requestUri, '/providers/') !== false;
 }
 .pz-hdr-cta:active { transform: scale(.97); }
 
-/* ── Hamburger ────────────────────────────────────── */
+/*  Hamburger  */
 .pz-hamburger {
   display: none; align-items: center; justify-content: center;
   width: 36px; height: 36px; border: none; background: none;
@@ -114,7 +115,7 @@ $isProviderPage = strpos($requestUri, '/providers/') !== false;
   font-size: 17px; transition: background .15s;
 }
 
-/* ── Dropdown menu ────────────────────────────────── */
+/*  Dropdown menu  */
 .pz-dropdown { position: relative; }
 .pz-dropdown-menu {
   display: none; position: absolute; top: calc(100% + 8px); left: 0;
@@ -145,7 +146,7 @@ $isProviderPage = strpos($requestUri, '/providers/') !== false;
 .pz-dropdown-sub   { font-size: 10.5px; color: #64748b; margin-top: 1px; }
 .pz-dropdown-divider { height: 1px; background: #f1f5f9; margin: 5px 0; }
 
-/* ── PATIENT HEADER (blue/teal brand) ─────────────── */
+/*  PATIENT HEADER (blue/teal brand)  */
 .pz-hdr--patient {
   background: rgba(255,255,255,.92);
 }
@@ -193,7 +194,7 @@ $isProviderPage = strpos($requestUri, '/providers/') !== false;
   flex-shrink: 0;
 }
 
-/* ── HOSPITAL HEADER (Clinical Precision — deep teal) */
+/*  HOSPITAL HEADER (Planeazzy — deep teal) */
 .pz-hdr--hospital {
   background: linear-gradient(135deg, #0d1b2e 0%, #0d2d4a 60%, #093342 100%);
   border-bottom-color: rgba(255,255,255,.08);
@@ -272,7 +273,7 @@ $isProviderPage = strpos($requestUri, '/providers/') !== false;
 .pz-hdr--hospital .pz-dropdown-section { color: rgba(255,255,255,.3); }
 .pz-hdr--hospital .pz-dropdown-divider { background: rgba(255,255,255,.08); }
 
-/* ── PROVIDER HEADER (teal) ───────────────────────── */
+/*  PROVIDER HEADER (teal)  */
 .pz-hdr--provider {
   background: rgba(255,255,255,.93);
 }
@@ -289,7 +290,7 @@ $isProviderPage = strpos($requestUri, '/providers/') !== false;
 .pz-hdr--provider .pz-login-link:hover { background:#f1f5f9;color:#1e293b; }
 .pz-hdr--provider .pz-user-avatar { width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#0d9488,#059669);display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;color:#fff;text-decoration:none;border:2px solid rgba(13,148,136,.2);flex-shrink:0; }
 
-/* ── Mobile nav drawer ────────────────────────────── */
+/*  Mobile nav drawer  */
 .pz-nav-drawer {
   display: none; flex-direction: column; gap: 0;
   position: fixed; top: 58px; left: 0; right: 0;
@@ -321,7 +322,7 @@ $isProviderPage = strpos($requestUri, '/providers/') !== false;
 .pz-nav-drawer .pz-dropdown-section { padding-left: 0; }
 .pz-nav-drawer .pz-dropdown-item { padding: 8px 6px; border-radius: 8px; }
 
-/* ── RESPONSIVE ───────────────────────────────────── */
+/*  RESPONSIVE  */
 @media (max-width: 1024px) {
   .pz-hdr-inner  { padding: 0 16px; }
   .pz-hdr-nav    { margin-left: 14px; gap: 2px; }
@@ -353,17 +354,17 @@ $isProviderPage = strpos($requestUri, '/providers/') !== false;
 <body style="display:flex;flex-direction:column;min-height:100vh" class="<?= !$noSidebar ? 'has-sidebar' : '' ?>">
 
 <?php
-/* ── Decide which header variant to render ───────────────── */
+/*  Decide which header variant to render  */
 if ($isHospitalPage || $isHospital):
-  /* ══ HOSPITAL HEADER (dark teal/slate — Clinical Precision) ══ */
+  /*  HOSPITAL HEADER (dark teal/slate — Planeazzy)  */
 ?>
 <header class="pz-hdr pz-hdr--hospital">
   <div class="pz-hdr-inner">
 
     <!-- Brand -->
     <a href="/hospital/onboarding/join.php" class="pz-hdr-logo" style="display:flex;flex-direction:column;gap:1px;text-decoration:none">
-      <span class="pz-hdr-logo-text" data-en="Clinical Precision" data-sw="Usahihi wa Kliniki">Clinical Precision</span>
-      <span class="pz-hdr-logo-sub" data-en="by Planeazzy" data-sw="na Planeazzy">by Planeazzy</span>
+      <img src="/assets/images/favicon1.png" alt="Planeazzy" style="height:34px;width:auto;display:block">
+      
     </a>
 
     <!-- Desktop nav -->
@@ -396,13 +397,13 @@ if ($isHospitalPage || $isHospital):
         <span>KEPDA Compliant</span>
       </div>
 
-      <!-- Lang toggle -->
-      <button class="pz-hdr-lang" id="langToggle"
+      <!-- Lang toggle-->
+      <!--<button class="pz-hdr-lang" id="langToggle"
               data-en-title="Switch to Swahili" data-sw-title="Switch to English"
               title="Switch Language">
         <i class="fa-solid fa-language"></i>
         <span id="langLabel">SW</span>
-      </button>
+      </button>-->
 
       <?php if ($isHospital): ?>
       <!-- Notifications -->
@@ -442,47 +443,45 @@ if ($isHospitalPage || $isHospital):
   <a href="/hospital/onboarding/join.php" class="pz-nav-link" data-en="Overview" data-sw="Muhtasari">Overview</a>
   <a href="/hospital/onboarding/signup.php" class="pz-nav-link" data-en="Register Facility" data-sw="Sajili Kituo">Register Facility</a>
   <a href="/hospital/onboarding/login.php" class="pz-nav-link" data-en="Sign In" data-sw="Ingia">Sign In</a>
-  <a href="/providers/login.php" class="pz-nav-link" style="font-size:12px;opacity:.75" data-en="Doctor / Provider Login" data-sw="Ingia kama Daktari">Doctor / Provider Login</a>
+  
   <?php endif; ?>
 </nav>
 
 <?php elseif ($isProviderPage || $isProvider): ?>
 <?php
-  /* ══ PROVIDER HEADER (white/teal) ══════════════════════════ */
+  /*  PROVIDER HEADER (white/teal)  */
 ?>
 <header class="pz-hdr pz-hdr--provider">
   <div class="pz-hdr-inner">
 
     <!-- Brand -->
     <a href="/" class="pz-hdr-logo">
-      <img src="/assets/images/favicon.png" alt="Planeazzy" style="height:34px">
+      <img src="/assets/images/logo.svg" alt="Planeazzy" style="height:34px">
     </a>
 
     <!-- Desktop nav -->
     <nav class="pz-hdr-nav">
       <?php if ($isProvider): ?>
-      <a href="/providers/dashboard.php" class="pz-nav-link <?= strpos($requestUri,'dashboard')!==false?'active':'' ?>" data-en="Dashboard" data-sw="Dashibodi">Dashboard</a>
-      <a href="/providers/dashboard.php?tab=appointments" class="pz-nav-link" data-en="Appointments" data-sw="Miadi">Appointments</a>
-      <a href="/providers/dashboard.php?tab=settings" class="pz-nav-link" data-en="Settings" data-sw="Mipangilio">Settings</a>
+      
+      
+      
       <?php else: ?>
-      <a href="/providers/register.php" class="pz-nav-link <?= strpos($requestUri,'register')!==false?'active':'' ?>" data-en="Register" data-sw="Jiandikishe">Register</a>
+      
       <a href="/hospital/onboarding/login.php" class="pz-nav-link" data-en="Hospital Portal" data-sw="Lango la Hospitali">Hospital Portal</a>
       <?php endif; ?>
     </nav>
 
     <div class="pz-hdr-actions">
-      <button class="pz-hdr-lang" id="langToggle" title="Switch Language">
+      <!--<button class="pz-hdr-lang" id="langToggle" title="Switch Language">
         <i class="fa-solid fa-language"></i>
         <span id="langLabel">SW</span>
-      </button>
+      </button>-->
       <?php if ($isProvider): ?>
-      <a href="/providers/dashboard.php?tab=settings" class="pz-user-avatar" title="Profile"><?= $initials ?></a>
-      <a href="/api/provider/logout.php" class="pz-login-link" data-en="Sign Out" data-sw="Toka">Sign Out</a>
+      
+      <a href="/api/hospital/logout.php" class="pz-login-link" data-en="Sign Out" data-sw="Toka">Sign Out</a>
       <?php else: ?>
-      <a href="/providers/login.php" class="pz-login-link" data-en="Sign In" data-sw="Ingia">Sign In</a>
-      <a href="/providers/register.php" class="pz-hdr-cta" style="background:#0d9488;color:#fff">
-        <span data-en="Register" data-sw="Jiandikishe">Register</span>
-      </a>
+      
+      
       <?php endif; ?>
       <button class="pz-hamburger" id="pzHamburger" aria-label="Menu" aria-expanded="false">
         <i class="fa-solid fa-bars"></i>
@@ -493,27 +492,27 @@ if ($isHospitalPage || $isHospital):
 
 <nav class="pz-nav-drawer pz-nav-drawer--provider" id="pzNavDrawer">
   <?php if ($isProvider): ?>
-  <a href="/providers/dashboard.php" class="pz-nav-link" data-en="Dashboard" data-sw="Dashibodi">Dashboard</a>
-  <a href="/providers/dashboard.php?tab=appointments" class="pz-nav-link" data-en="Appointments" data-sw="Miadi">Appointments</a>
-  <a href="/providers/dashboard.php?tab=settings" class="pz-nav-link" data-en="Settings" data-sw="Mipangilio">Settings</a>
-  <a href="/api/provider/logout.php" class="pz-nav-link" style="color:#dc2626" data-en="Sign Out" data-sw="Toka">Sign Out</a>
+  
+  
+  
+  <a href="/api/hospital/logout.php" class="pz-nav-link" style="color:#dc2626" data-en="Sign Out" data-sw="Toka">Sign Out</a>
   <?php else: ?>
-  <a href="/providers/register.php" class="pz-nav-link" data-en="Register" data-sw="Jiandikishe">Register</a>
-  <a href="/providers/login.php" class="pz-nav-link" data-en="Sign In" data-sw="Ingia">Sign In</a>
+  
+  
   <a href="/hospital/onboarding/login.php" class="pz-nav-link" data-en="Hospital Portal →" data-sw="Lango la Hospitali →">Hospital Portal →</a>
   <?php endif; ?>
 </nav>
 
 <?php else: ?>
 <?php
-  /* ══ PATIENT / PUBLIC HEADER (white/blue — Planeazzy brand) ══ */
+  /*  PATIENT / PUBLIC HEADER (white/blue — Planeazzy brand)  */
 ?>
 <header class="pz-hdr pz-hdr--patient">
   <div class="pz-hdr-inner">
 
     <!-- Brand -->
     <a href="/" class="pz-hdr-logo">
-      <img src="/assets/images/favicon.png" alt="Planeazzy" style="height:36px">
+      <img src="/assets/images/favicon1.png" alt="Planeazzy" style="height:36px">
     </a>
 
     <!-- Desktop nav -->
@@ -539,47 +538,48 @@ if ($isHospitalPage || $isHospital):
           <i class="fa-solid fa-chevron-down" style="font-size:9px;margin-left:2px;transition:transform .2s" id="dropChev"></i>
         </button>
         <div class="pz-dropdown-menu" id="facilityDropdown">
-          <div class="pz-dropdown-section" data-en="Hospital Portal" data-sw="Lango la Hospitali">Hospital Portal</div>
+          <div class="pz-dropdown-section" data-en="Hospitals &amp; Clinics" data-sw="Hospitali na Kliniki">Hospitals &amp; Clinics</div>
           <a href="/hospital/onboarding/join.php" class="pz-dropdown-item">
-            <div class="pz-dropdown-icon" style="background:rgba(5,150,105,.1)"><i class="fa-solid fa-hospital" style="color:#059669"></i></div>
+            <div class="pz-dropdown-icon" style="background:rgba(25,120,229,.1)"><i class="fa-solid fa-hospital" style="color:#1978e5"></i></div>
             <div>
-              <div class="pz-dropdown-label" data-en="Register Hospital / Clinic" data-sw="Sajili Hospitali / Kliniki">Register Hospital / Clinic</div>
-              <div class="pz-dropdown-sub" data-en="Start your facility onboarding" data-sw="Anza usajili wa kituo chako">Start your facility onboarding</div>
+              <div class="pz-dropdown-label" data-en="Register Your Hospital" data-sw="Sajili Hospitali Yako">Register Your Hospital</div>
+              <div class="pz-dropdown-sub" data-en="Join Planeazzy as a verified facility" data-sw="Jiunge kama kituo kilichoidhinishwa">Join Planeazzy as a verified facility</div>
             </div>
           </a>
           <a href="/hospital/onboarding/login.php" class="pz-dropdown-item">
-            <div class="pz-dropdown-icon" style="background:rgba(8,115,223,.1)"><i class="fa-solid fa-right-to-bracket" style="color:#0873df"></i></div>
+            <div class="pz-dropdown-icon" style="background:rgba(25,120,229,.1)"><i class="fa-solid fa-right-to-bracket" style="color:#1978e5"></i></div>
             <div>
               <div class="pz-dropdown-label" data-en="Hospital Sign In" data-sw="Ingia kama Hospitali">Hospital Sign In</div>
-              <div class="pz-dropdown-sub" data-en="Access Clinical Precision" data-sw="Fikia Clinical Precision">Access Clinical Precision</div>
+              <div class="pz-dropdown-sub" data-en="Access your hospital dashboard" data-sw="Fikia dashibodi ya hospitali yako">Access your hospital dashboard</div>
             </div>
           </a>
           <div class="pz-dropdown-divider"></div>
-          <div class="pz-dropdown-section" data-en="Individual Providers" data-sw="Watoa Huduma Binafsi">Individual Providers</div>
-          <a href="/providers/doctor/register.php" class="pz-dropdown-item">
-            <div class="pz-dropdown-icon" style="background:rgba(13,148,136,.1)"><i class="fa-solid fa-stethoscope" style="color:#0d9488"></i></div>
+          <div class="pz-dropdown-section" data-en="Doctors &amp; Specialists" data-sw="Madaktari na Wataalamu">Doctors &amp; Specialists</div>
+          <a href="/doctors/onboarding/register.php" class="pz-dropdown-item">
+            <div class="pz-dropdown-icon" style="background:rgba(13,148,136,.1)"><i class="fa-solid fa-user-doctor" style="color:#0d9488"></i></div>
             <div>
-              <div class="pz-dropdown-label" data-en="Register as Doctor" data-sw="Jiandikishe kama Daktari">Register as Doctor</div>
-              <div class="pz-dropdown-sub" data-en="Doctors &amp; specialists" data-sw="Madaktari na wataalamu">Doctors &amp; specialists</div>
+              <div class="pz-dropdown-label" data-en="Doctor Registration" data-sw="Ingia kama Daktari">Register as a Doctor</div>
+              <div class="pz-dropdown-sub" data-en="Sign up to access as a doctor" data-sw="Ingia kama daktari">Sign up as a doctor</div>
             </div>
           </a>
-          <a href="/providers/login.php" class="pz-dropdown-item">
-            <div class="pz-dropdown-icon" style="background:rgba(13,148,136,.1)"><i class="fa-solid fa-right-to-bracket" style="color:#0d9488"></i></div>
+          <a href="/doctors/onboarding/login.php" class="pz-dropdown-item">
+            <div class="pz-dropdown-icon" style="background:rgba(25,120,229,.1)"><i class="fa-solid fa-right-to-bracket" style="color:#1978e5"></i></div>
             <div>
-              <div class="pz-dropdown-label" data-en="Provider Sign In" data-sw="Ingia kama Mtoa Huduma">Provider Sign In</div>
-              <div class="pz-dropdown-sub" data-en="Doctors, clinics &amp; ambulances" data-sw="Madaktari, kliniki &amp; ambulensi">Doctors, clinics &amp; ambulances</div>
+              <div class="pz-dropdown-label" data-en="Doctor Login" data-sw="Ingia kama Hospitali">Sign in as a Doctor</div>
+              <div class="pz-dropdown-sub" data-en="Access your hospital dashboard" data-sw="Fikia dashibodi ya hospitali yako">Access your hospital dashboard</div>
             </div>
           </a>
+          <div class="pz-dropdown-divider"></div>
         </div>
       </div>
     </nav>
 
     <!-- Actions -->
     <div class="pz-hdr-actions">
-      <button class="pz-hdr-lang" id="langToggle" title="Switch Language">
+      <!--<button class="pz-hdr-lang" id="langToggle" title="Switch Language">
         <i class="fa-solid fa-language"></i>
         <span id="langLabel">SW</span>
-      </button>
+      </button>-->
 
       <?php if ($isPatient): ?>
       <a href="/patients/dashboard.php?tab=notifications" style="position:relative;color:#64748b;font-size:15px;padding:5px;text-decoration:none">
@@ -591,8 +591,8 @@ if ($isHospitalPage || $isHospital):
       <a href="/patients/dashboard.php?tab=settings" class="pz-user-avatar" title="Profile"><?= $initials ?></a>
       <a href="/api/auth/logout.php" class="pz-login-link" data-en="Sign Out" data-sw="Toka">Sign Out</a>
       <?php elseif ($isProvider): ?>
-      <a href="/providers/dashboard.php?tab=settings" class="pz-user-avatar" title="Profile"><?= $initials ?></a>
-      <a href="/api/provider/logout.php" class="pz-login-link" data-en="Sign Out" data-sw="Toka">Sign Out</a>
+      
+      <a href="/api/hospital/logout.php" class="pz-login-link" data-en="Sign Out" data-sw="Toka">Sign Out</a>
       <?php else: ?>
       <a href="/patients/login.php" class="pz-login-link" data-en="Log in" data-sw="Ingia">Log in</a>
       <button class="pz-hdr-cta" onclick="location.href='/patients/register.php'"
@@ -613,8 +613,8 @@ if ($isHospitalPage || $isHospital):
   <div style="padding:10px 10px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#94a3b8" data-en="For Facilities" data-sw="Kwa Vituo">For Facilities</div>
   <a href="/hospital/onboarding/join.php" class="pz-nav-link" data-en="Register Hospital / Clinic" data-sw="Sajili Hospitali / Kliniki">Register Hospital / Clinic</a>
   <a href="/hospital/onboarding/login.php" class="pz-nav-link" data-en="Hospital Sign In" data-sw="Ingia kama Hospitali">Hospital Sign In</a>
-  <a href="/providers/doctor/register.php" class="pz-nav-link" data-en="Register as Doctor" data-sw="Jiandikishe kama Daktari">Register as Doctor</a>
-  <a href="/providers/login.php" class="pz-nav-link" data-en="Provider Sign In" data-sw="Ingia kama Mtoa Huduma">Provider Sign In</a>
+  
+  
   <?php if ($isPatient): ?>
   <div style="height:1px;background:#f1f5f9;margin:6px 0"></div>
   <a href="/patients/dashboard.php" class="pz-nav-link" data-en="My Dashboard" data-sw="Dashibodi Yangu">My Dashboard</a>
@@ -674,13 +674,13 @@ if ($isHospitalPage || $isHospital):
 </script>
 
 <?php if (!$noSidebar): ?>
-<!-- ═══════════════════════════════════════════════════
+<!-- 
      DASHBOARD SIDEBAR (patient & provider portals)
-═══════════════════════════════════════════════════ -->
+ -->
 <div style="display:flex;flex:1;min-height:calc(100vh - 52px)">
 <aside class="sidebar" id="sidebar">
   <div class="s-logo" style="border-bottom:1px solid var(--slate-100)">
-    <img src="/assets/images/favicon.png" alt="Planeazzy" style="height:32px;width:auto;object-fit:contain;display:block">
+    <img src="/assets/images/logo.svg" alt="Planeazzy" style="height:32px;width:auto;object-fit:contain;display:block">
     <div class="s-logo-row" style="flex:1;margin-left:4px">
       <button class="s-toggle-btn" onclick="Sidebar.toggle()" title="Collapse sidebar">
         <i class="fa-solid fa-chevron-left" id="sToggleIcon"></i>
@@ -710,11 +710,11 @@ if ($isHospitalPage || $isHospital):
     <a href="/patients/dashboard.php?tab=settings"      class="s-nav-item <?= $activeTab==='settings'?'active':''?>"><i class="fa-solid fa-gear s-item-icon"></i><span class="s-nav-label" data-en="Settings" data-sw="Mipangilio">Settings</span></a>
     <a href="/api/auth/logout.php"                      class="s-nav-item"><i class="fa-solid fa-right-from-bracket s-item-icon"></i><span class="s-nav-label" data-en="Sign Out" data-sw="Toka">Sign Out</span></a>
     <?php elseif ($isProvider): ?>
-    <a href="/providers/dashboard.php?tab=overview"     class="s-nav-item <?= $activeTab==='overview'?'active':''?>"><i class="fa-solid fa-gauge s-item-icon"></i><span class="s-nav-label" data-en="Dashboard" data-sw="Dashibodi">Dashboard</span></a>
-    <a href="/providers/dashboard.php?tab=appointments" class="s-nav-item <?= $activeTab==='appointments'?'active':''?>"><i class="fa-solid fa-calendar-check s-item-icon"></i><span class="s-nav-label" data-en="Appointments" data-sw="Miadi">Appointments</span></a>
-    <a href="/providers/dashboard.php?tab=patients"     class="s-nav-item <?= $activeTab==='patients'?'active':''?>"><i class="fa-solid fa-users s-item-icon"></i><span class="s-nav-label" data-en="Patients" data-sw="Wagonjwa">Patients</span></a>
-    <a href="/providers/dashboard.php?tab=settings"     class="s-nav-item <?= $activeTab==='settings'?'active':''?>"><i class="fa-solid fa-gear s-item-icon"></i><span class="s-nav-label" data-en="Settings" data-sw="Mipangilio">Settings</span></a>
-    <a href="/api/provider/logout.php"                  class="s-nav-item"><i class="fa-solid fa-right-from-bracket s-item-icon"></i><span class="s-nav-label" data-en="Sign Out" data-sw="Toka">Sign Out</span></a>
+    
+    
+    
+    
+    <a href="/api/hospital/logout.php"                  class="s-nav-item"><i class="fa-solid fa-right-from-bracket s-item-icon"></i><span class="s-nav-label" data-en="Sign Out" data-sw="Toka">Sign Out</span></a>
     <?php endif; ?>
   </nav>
   <?php if ($isPatient): ?>
@@ -755,7 +755,7 @@ if ($isHospitalPage || $isHospital):
         <div style="font-size:12.5px;font-weight:600;color:var(--slate-900)"><?= $userName ?></div>
         <div style="font-size:10.5px;color:var(--slate-400)"><?= $isPatient ? 'Patient ID: #'.str_pad($_SESSION['patient_id']??0,5,'0',STR_PAD_LEFT) : ucfirst($provType) ?></div>
       </div>
-      <a href="<?= $isPatient ? '/patients/dashboard.php?tab=settings' : '/providers/dashboard.php?tab=settings' ?>"
+      <a href="<?= $isPatient ? '/patients/dashboard.php?tab=settings' : '/hospital/dashboard.php?tab=settings' ?>"
          style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--teal));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;text-decoration:none;border:2px solid rgba(25,120,229,.2)">
         <?= $initials ?>
       </a>

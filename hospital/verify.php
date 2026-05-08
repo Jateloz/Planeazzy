@@ -25,7 +25,8 @@ if (APP_ENV === 'development') {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Verify Account — Planeazzy Partner</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231978e5'/><text y='72' font-size='65' text-anchor='middle' x='50' fill='white'>+</text></svg>">
+  <link rel="icon" type="image/png" href="/assets/images/favicon.png">
+  <link rel="apple-touch-icon" href="/assets/images/favicon.png"><rect width='100' height='100' rx='20' fill='%231978e5'/><text y='72' font-size='65' text-anchor='middle' x='50' fill='white'>+</text></svg>">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
   <link rel="stylesheet" href="/assets/css/hospital.css">
 </head>
@@ -56,19 +57,19 @@ if (APP_ENV === 'development') {
 
       <div style="padding:24px 32px 28px">
         <?php if ($devOtp): ?>
-        <div style="background:#fefce8;border:1.5px dashed #d97706;border-radius:10px;padding:14px;text-align:center;margin-bottom:16px">
-          <div style="font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;margin-bottom:6px">⚡ Dev Mode — OTP Code</div>
+        <!--<div style="background:#fefce8;border:1.5px dashed #d97706;border-radius:10px;padding:14px;text-align:center;margin-bottom:16px">
+          <div style="font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;margin-bottom:6px"> Dev Mode — OTP Code</div>
           <div style="font-family:monospace;font-size:32px;font-weight:900;letter-spacing:10px;color:var(--hp)"><?= htmlspecialchars($devOtp) ?></div>
           <div style="font-size:11px;color:#92400e;margin-top:5px">
             Copy into boxes below · <a href="/dev-otp.php" style="color:var(--hp)">View all codes →</a>
           </div>
-        </div>
+        </div>-->
         <?php endif; ?>
 
         <div id="hAlertBox" class="h-alert hidden"><i class="fa-solid fa-circle-exclamation"></i><span></span></div>
 
         <!-- OTP digits -->
-        <div class="h-otp-row" id="hOtpRow" data-csrf="<?= $csrf ?>">
+        <div class="h-otp-row" id="hOtpRow">
           <?php for ($i = 0; $i < 6; $i++): ?>
           <input class="h-otp-d" type="text" inputmode="numeric" maxlength="1" autocomplete="off" <?= $i === 0 ? 'autofocus' : '' ?>>
           <?php endfor; ?>
@@ -104,14 +105,9 @@ if (pEmail) { const el = document.getElementById('hEmailShow'); if (el) el.textC
 async function doVerify() {
   const code = HOTP.value('#hOtpRow');
   const id   = parseInt(sessionStorage.getItem('pz_prov_id') || '0');
-  
-  // Corrected way to get the token from the data attribute
-  const token = document.getElementById('hOtpRow').getAttribute('data-csrf');
-
-  const r = await hPost('/api/provider/verify-otp.php', {
-    csrf_token:  token,
-    provider_id: id, 
-    otp: code
+  const r    = await hPost('/api/hospital/verify-otp.php', {
+    csrf_token:  document.querySelector('#hOtpRow')?.dataset.csrf || document.cookie.split(';').find(c=>c.includes('csrf'))?.split('=')[1] || '',
+    provider_id: id, otp: code
   }, 'hVerifyBtn', 'hAlertBox');
   if (!r) return;
   if (r.success) {
@@ -124,7 +120,7 @@ async function doVerify() {
 
 async function doResend() {
   const id = parseInt(sessionStorage.getItem('pz_prov_id') || '0');
-  const r  = await hPost('/api/provider/resend-otp.php', { provider_id: id }, null, 'hAlertBox');
+  const r  = await hPost('/api/hospital/resend-otp.php', { provider_id: id }, null, 'hAlertBox');
   if (r?.success) HUI.alert('ok', 'A new verification code has been sent.', 'hAlertBox');
   else HUI.alert('err', r?.message || 'Could not resend. Try again later.', 'hAlertBox');
 }

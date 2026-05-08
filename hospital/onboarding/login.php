@@ -149,13 +149,13 @@ include __DIR__ . '/_head.php';
         <?php endforeach; ?>
         <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.15)">
           <p style="font-size:.75rem;color:rgba(255,255,255,.6);margin-bottom:6px"
-             data-en="Are you a Doctor or Individual Provider?" data-sw="Je, wewe ni Daktari au Mtoa Huduma Binafsi?">
-            Are you a Doctor or Individual Provider?
+             data-en="Are you a Doctor (not a hospital)?" data-sw="Je, wewe ni Daktari (si hospitali)?">
+            Are you a Doctor (not a hospital)?
           </p>
-          <a href="/providers/login.php"
+          <a href="/doctors/onboarding/login.php"
              style="font-size:.8125rem;font-weight:700;color:rgba(144,239,239,.9);text-decoration:underline"
-             data-en="Go to Provider Login →" data-sw="Nenda kwa Kuingia kwa Mtoa Huduma →">
-            Go to Provider Login →
+             data-en="Go to Doctor Login →" data-sw="Nenda kwa Kuingia kwa Daktari →">
+            Go to Doctor Login →
           </a>
         </div>
       </div>
@@ -258,9 +258,9 @@ include __DIR__ . '/_head.php';
             <span class="material-symbols-outlined" style="font-size:15px">person</span>
             <span data-en="Patient Login" data-sw="Ingia kama Mgonjwa">Patient Login</span>
           </a>
-          <a href="/providers/login.php" style="display:inline-flex;align-items:center;gap:5px;font-size:.8125rem;font-weight:600;color:var(--cp-secondary);padding:6px 12px;border-radius:8px;background:rgba(0,106,106,.08);text-decoration:none">
+          <a href="/doctors/onboarding/login.php" style="display:inline-flex;align-items:center;gap:5px;font-size:.8125rem;font-weight:600;color:var(--cp-secondary);padding:6px 12px;border-radius:8px;background:rgba(0,106,106,.08);text-decoration:none">
             <span class="material-symbols-outlined" style="font-size:15px">stethoscope</span>
-            <span data-en="Doctor / Provider Login" data-sw="Ingia kama Daktari / Mtoa Huduma">Doctor / Provider Login</span>
+            <span data-en="Doctor Login" data-sw="Ingia kama Daktari">Doctor Login</span>
           </a>
         </div>
       </div>

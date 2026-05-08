@@ -4,6 +4,13 @@ require_once dirname(__DIR__, 2) . '/services/Security.php';
 require_once dirname(__DIR__, 2) . '/services/Database.php';
 Security::startSession();
 if (empty($_SESSION['hospital_id'])) { header('Location: /hospital/onboarding/signup.php'); exit; }
+// Logout handler
+if (isset($_GET['logout'])) {
+    session_unset();
+    session_destroy();
+    header('Location: /index.php');
+    exit;
+}
 $hid  = (int)$_SESSION['hospital_id'];
 $db   = Database::getInstance();
 $hosp = $db->fetchOne('SELECT * FROM hospital_providers WHERE id=:id',[':id'=>$hid]);
@@ -45,13 +52,12 @@ $refId  = 'CP-' . str_pad($hid,6,'0',STR_PAD_LEFT);
 
 <!-- Topnav -->
 <header class="cp-topnav">
-  <a href="/hospital/onboarding/join.php" class="cp-topnav-brand" data-en="Clinical Precision" data-sw="Usahihi wa Kliniki">Clinical Precision</a>
+  <a href="index.php" class="cp-topnav-brand" data-en="Clinical Precision" data-sw="Usahihi wa Kliniki">Clinical Precision</a>
   <div class="cp-topnav-actions">
     <button onclick="location.reload()" class="cp-btn cp-btn-ghost cp-btn-sm">
       <span class="material-symbols-outlined" style="font-size:16px">refresh</span>
       <span data-en="Refresh" data-sw="Onyesha Upya">Refresh</span>
     </button>
-    <button class="cp-lang-btn" id="langToggle"><span class="material-symbols-outlined" style="font-size:15px">language</span><span id="langLabel">SW</span></button>
   </div>
 </header>
 

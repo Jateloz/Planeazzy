@@ -1,0 +1,67 @@
+[2026-05-04 14:17:15] [INFO] [msg-api] appointment_messages table ready
+[2026-05-04 14:17:15] [INFO] [msg-api] Message sent {"id":9,"appt_id":2,"appt_type":"hospital","sender_type":"hospital","sender_id":1,"sender_name":"Kenyatta National Hospital","length":9}
+[2026-05-04 14:17:16] [INFO] [msg-api] appointment_messages table ready
+[2026-05-04 15:47:25] [INFO] [msg-api] appointment_messages table ready
+[2026-05-04 15:47:25] [INFO] [msg-api] Message sent {"id":1,"appt_id":1,"appt_type":"hospital","sender_type":"patient","sender_id":1,"sender_name":"Henry Odindo","length":5}
+[2026-05-04 15:47:29] [INFO] [msg-api] appointment_messages table ready
+[2026-05-04 20:02:59] [INFO] [msg-api] appointment_messages table ready
+[2026-05-04 20:02:59] [INFO] [msg-api] Message sent {"id":3,"appt_id":2,"appt_type":"hospital","sender_type":"hospital","sender_id":1,"sender_name":"Planeazzy Hopital","length":5}
+[2026-05-04 20:03:03] [INFO] [msg-api] appointment_messages table ready
+[2026-05-04 21:33:56] [INFO] [msg-api] appointment_messages table ready
+[2026-05-04 21:33:56] [INFO] [msg-api] appointment_messages table ready
+[2026-05-04 21:34:03] [INFO] [msg-api] appointment_messages table ready
+[2026-05-04 21:34:11] [INFO] [msg-api] appointment_messages table ready
+[2026-05-04 21:34:19] [INFO] [msg-api] appointment_messages table ready
+[2026-05-04 21:34:27] [INFO] [msg-api] appointment_messages table ready
+[2026-05-04 21:34:35] [INFO] [msg-api] appointment_messages table ready
+[2026-05-04 21:34:43] [INFO] [msg-api] appointment_messages table ready
+[2026-05-04 21:36:12] [INFO] [msg-api] appointment_messages table ready
+[2026-05-04 21:36:17] [INFO] [msg-api] appointment_messages table ready
+[2026-05-04 21:36:17] [INFO] [msg-api] Message sent {"id":4,"appt_id":2,"appt_type":"hospital","sender_type":"patient","sender_id":3,"sender_name":"BRIAN GILLO","length":5}
+[2026-05-04 21:36:20] [INFO] [msg-api] appointment_messages table ready
+[2026-05-04 21:36:25] [INFO] [msg-api] appointment_messages table ready
+[2026-05-04 21:36:25] [INFO] [msg-api] Message sent {"id":5,"appt_id":2,"appt_type":"hospital","sender_type":"patient","sender_id":3,"sender_name":"BRIAN GILLO","length":11}
+[2026-05-04 21:36:28] [INFO] [msg-api] appointment_messages table ready
+[2026-05-04 21:37:04] [INFO] [msg-api] appointment_messages table ready
+[2026-05-04 21:53:07] [INFO] [msg-api] appointment_messages table ready
+[2026-05-05 07:58:28] [INFO] [msg-api] appointment_messages table ready
+[2026-05-05 10:11:18] [INFO] [msg-api] appointment_messages table ready
+[2026-05-05 10:11:18] [INFO] [msg-api] appointment_messages table ready
+[2026-05-05 10:11:18] [INFO] [msg-api] Message sent {"id":6,"appt_id":2,"appt_type":"hospital","sender_type":"hospital","sender_id":1,"sender_name":"Planeazzy Hopital","length":4}
+[2026-05-05 10:11:26] [INFO] [msg-api] appointment_messages table ready
+[2026-05-05 10:12:06] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 09:51:19] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 09:51:19] [INFO] [msg-api] Message sent {"id":10,"appt_id":15,"appt_type":"standard","sender_type":"patient","sender_id":4,"sender_name":"Henry Odindo","length":5}
+[2026-05-07 09:51:20] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 09:51:52] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 09:51:58] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 09:51:58] [INFO] [msg-api] Message sent {"id":11,"appt_id":15,"appt_type":"standard","sender_type":"doctor","sender_id":3,"sender_name":"Dr. Henry Odindo","length":8}
+[2026-05-07 09:51:58] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 09:52:00] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 09:52:02] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 10:06:28] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 10:06:32] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 10:06:35] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 10:06:38] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 10:06:43] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 10:06:43] [INFO] [msg-api] Message sent {"id":12,"appt_id":16,"appt_type":"standard","sender_type":"patient","sender_id":4,"sender_name":"Henry Odindo","length":5}
+[2026-05-07 10:07:05] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 10:07:14] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 10:07:25] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 10:07:29] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 10:07:29] [INFO] [msg-api] Message sent {"id":13,"appt_id":9,"appt_type":"hospital","sender_type":"hospital","sender_id":7,"sender_name":"Planeazzy Hospital","length":5}
+[2026-05-07 10:07:47] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 10:07:52] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 10:07:57] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 10:08:01] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 10:08:04] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 10:08:11] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 10:08:11] [INFO] [msg-api] Message sent {"id":14,"appt_id":16,"appt_type":"standard","sender_type":"patient","sender_id":4,"sender_name":"Henry Odindo","length":5}
+[2026-05-07 10:08:12] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 10:08:16] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 10:08:44] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 10:09:08] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 10:09:16] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 10:36:22] [INFO] [msg-api] appointment_messages table ready
+[2026-05-07 10:36:22] [INFO] [msg-api] Message sent {"id":15,"appt_id":18,"appt_type":"standard","sender_type":"patient","sender_id":4,"sender_name":"Henry Odindo","length":5}
+[2026-05-07 10:48:21] [INFO] [msg-api] appointment_messages table ready

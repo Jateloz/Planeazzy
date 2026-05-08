@@ -1,8 +1,4 @@
 <?php
-/**
- * Clinical Precision — shared <head> partial
- * Requires: $cpTitle (string), $cpStep (int 1-9)
- */
 $cpTitle = $cpTitle ?? 'Clinical Precision';
 $cpStep  = $cpStep  ?? 1;
 $cpLang  = $_SESSION['cp_lang'] ?? 'en';
@@ -17,7 +13,8 @@ $cpLang  = $_SESSION['cp_lang'] ?? 'en';
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
   <link rel="stylesheet" href="/assets/css/clinical.css">
-  <link rel="icon" href="/assets/images/favicon1.png" type="image/png">
+  <link rel="icon" href="/assets/images/favicon.png" type="image/svg+xml">
 </head>
 <body>

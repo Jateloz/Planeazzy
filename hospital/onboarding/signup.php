@@ -4,13 +4,16 @@ require_once dirname(__DIR__, 2) . '/services/Security.php';
 require_once dirname(__DIR__, 2) . '/services/Database.php';
 Security::startSession();
 
+// Set Timezone explicitly just in case config is bypassed
+date_default_timezone_set('Africa/Nairobi');
+
 if (!empty($_SESSION['hospital_id']) && !empty($_SESSION['hospital_auth'])) {
     header('Location: /hospital/onboarding/dashboard.php'); exit;
 }
 
 $csrf  = Security::csrfToken();
 $error = '';
-$devError = ''; // detailed error for dev mode only
+$devError = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $tok   = trim($_POST['csrf_token'] ?? '');
@@ -21,87 +24,79 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $agree = !empty($_POST['agree']);
 
     if (!Security::verifyCsrf($tok)) {
-        $error = 'Security token error. Please refresh the page and try again.';
-    } elseif (!$name) {
-        $error = 'Organisation name is required.';
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $error = 'Please enter a valid email address.';
-    } elseif (!$phone) {
-        $error = 'Phone number is required.';
-    } elseif (strlen($pw) < 8) {
-        $error = 'Password must be at least 8 characters long.';
+        $error = 'Security token error. Please refresh the page.';
+    } elseif (!$name || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($pw) < 8) {
+        $error = 'Please fill in all fields correctly. Password must be 8+ characters.';
     } elseif (!$agree) {
-        $error = 'You must agree to the Terms of Service to continue.';
+        $error = 'You must agree to the Terms of Service.';
     } else {
         try {
             $db = Database::getInstance();
 
-            // Check duplicate email
-            $existing = $db->fetchOne(
-                'SELECT id FROM hospital_providers WHERE admin_email = :e',
-                [':e' => strtolower($email)]
-            );
+            $existing = $db->fetchOne('SELECT id FROM hospital_providers WHERE admin_email = :e', [':e' => strtolower($email)]);
             if ($existing) {
-                $error = 'An account with this email already exists. Please sign in instead.';
-            } else {
-                $hash = password_hash($pw, PASSWORD_BCRYPT, ['cost' => BCRYPT_COST]);
-
-// --- UPDATED INSERT QUERY ---
-$id = $db->insert(
-    'INSERT INTO hospital_providers
-     (admin_name, admin_email, admin_phone, password_hash,
-      onboarding_step, status, created_at)
-     VALUES (:n, :e, :p, :h, :step, :status, :at)', // Changed NOW() to :at
-    [
-        ':n'      => $name,
-        ':e'      => strtolower($email),
-        ':p'      => $phone,
-        ':h'      => $hash,
-        ':step'   => 2,
-        ':status' => 'pending',
-        ':at'     => date('Y-m-d H:i:s') // PHP sends Nairobi time here
-    ]
-);
-
-                if (!$id) {
-                    $error = 'Account could not be created. Please try again.';
-                } else {
-                    $_SESSION['hospital_id']    = $id;
-                    $_SESSION['hospital_auth']  = false;
-                    $_SESSION['hospital_name']  = $name;
-                    $_SESSION['hospital_email'] = strtolower($email);
-                    $_SESSION['hospital_step']  = 2;
-                    header('Location: /hospital/onboarding/select-type.php'); exit;
-                }
-            }
-
-        } catch (RuntimeException $e) {
-            // DB unavailable (wrong credentials, DB not running)
-            $devError = $e->getMessage();
-            $error = 'Cannot connect to the database. Please check your database configuration.';
-            error_log('[Hospital Signup] DB connection: ' . $e->getMessage());
-
-        } catch (PDOException $e) {
-            // SQL error (table missing, column wrong, etc.)
-            $devError = $e->getMessage();
-            if (strpos($e->getMessage(), 'hospital_providers') !== false &&
-                strpos($e->getMessage(), "doesn't exist") !== false) {
-                $error = 'Database tables are not set up. Please run the hospital schema SQL first (see README).';
-            } elseif (strpos($e->getMessage(), 'Duplicate') !== false) {
                 $error = 'An account with this email already exists.';
             } else {
-                $error = 'A database error occurred. Please try again.';
-            }
-            error_log('[Hospital Signup] PDO: ' . $e->getMessage());
+                // 1. Prepare Security & Nairobi Time
+$otp  = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+$otpHash = password_hash($otp, PASSWORD_BCRYPT);
+$hash = password_hash($pw, PASSWORD_BCRYPT); // <--- ADD THIS LINE HERE
+$now = date('Y-m-d H:i:s'); // Nairobi Time String
 
-        } catch (Throwable $e) {
-            $devError = $e->getMessage();
-            $error = 'An unexpected error occurred. Please try again.';
-            error_log('[Hospital Signup] ' . $e->getMessage());
+                // 2. Insert into Database
+                $id = $db->insert(
+                    'INSERT INTO hospital_providers
+                     (admin_name, admin_email, admin_phone, password_hash,
+                      onboarding_step, status, email_otp_hash, email_otp_at, created_at)
+                     VALUES (:n, :e, :p, :h, :step, :status, :oh, :oa, :ca)',
+                    [
+                        ':n'      => $name,
+                        ':e'      => strtolower($email),
+                        ':p'      => $phone,
+                        ':h'      => $hash,
+                        ':step'   => 1,
+                        ':status' => 'pending',
+                        ':oh'     => $otpHash,
+                        ':oa'     => $now, 
+                        ':ca'     => $now
+                    ]
+                );
+
+                if ($id) {
+                    // 3. Send the OTP Email
+                    require_once dirname(__DIR__, 2) . '/services/HospitalMailer.php';
+
+                    $sent = false;
+                    try {
+                        $sent = HospitalMailer::sendOtp(strtolower($email), $name, $otp, $id);
+                    } catch (Exception $me) {
+                        error_log('[Mail Error] ' . $me->getMessage());
+                    }
+
+                    // 4. Log the OTP (Crucial for testing if email fails)
+                    $logDir = defined('LOG_DIR') ? LOG_DIR : dirname(__DIR__, 2) . '/logs/';
+                    if (!is_dir($logDir)) @mkdir($logDir, 0775, true);
+                    $logLine = date('[Y-m-d H:i:s]') . " HOSP-REG [$email] ID:$id OTP:$otp sent:" . ($sent ? 'yes' : 'no') . "\n";
+                    @file_put_contents($logDir . 'otp_codes.txt', $logLine, FILE_APPEND | LOCK_EX);
+
+                    // 5. Setup Sessions for the verify-email.php page
+                    $_SESSION['hospital_id']        = $id;
+                    $_SESSION['hospital_email']     = strtolower($email);
+                    $_SESSION['hospital_name']      = $name;
+                    $_SESSION['hospital_otp_id']    = $id;
+                    $_SESSION['hospital_otp_email'] = strtolower($email);
+                    $_SESSION['hospital_auth']      = false;
+
+                    header('Location: /hospital/onboarding/verify-email.php'); 
+                    exit;
+                }
+            }
+        } catch (Exception $e) {
+            $error = 'An error occurred. Please try again.';
+            error_log($e->getMessage());
         }
     }
 }
-
 $cpStep  = 2;
 $cpTitle = 'Create Account';
 include __DIR__ . '/_head.php';
@@ -128,7 +123,7 @@ include __DIR__ . '/_head.php';
 
 <div class="su-layout">
 
-  <!-- ── Left branding panel ─────────────────────────── -->
+  <!--  Left branding panel  -->
   <div class="su-left">
     <div style="position:absolute;bottom:-80px;left:-80px;width:320px;height:320px;background:rgba(0,90,180,.05);border-radius:50%;filter:blur(80px);pointer-events:none"></div>
     <div style="position:absolute;top:-80px;right:-80px;width:260px;height:260px;background:rgba(0,106,106,.05);border-radius:50%;filter:blur(80px);pointer-events:none"></div>
@@ -142,14 +137,14 @@ include __DIR__ . '/_head.php';
         <span data-en=" for Modern Healthcare." data-sw=" kwa Afya ya Kisasa."> for Modern Healthcare.</span>
       </h1>
       <p class="cp-body-lg" style="margin-bottom:40px;max-width:380px"
-         data-en="Join a network of elite providers using Kenya's most advanced KEPDA-compliant clinical management framework."
-         data-sw="Jiunge na mtandao wa watoa huduma bora wanaotumia mfumo wa kisasa zaidi wa usimamizi wa kliniki unaozingatia KEPDA wa Kenya.">
-        Join a network of elite providers using Kenya's most advanced KEPDA-compliant clinical management framework.
+         data-en="Join a network of elite hospitals and clinics using Kenya's most advanced KEPDA-compliant clinical management framework."
+         data-sw="Jiunge na mtandao wa hospitali bora wanaotumia mfumo wa kisasa zaidi wa usimamizi wa kliniki unaozingatia KEPDA wa Kenya.">
+        Join a network of elite hospitals and clinics using Kenya's most advanced KEPDA-compliant clinical management framework.
       </p>
       <?php foreach([
         ['verified_user','Secure Infrastructure','Miundo ya Usalama','Tier-4 data centers with real-time encryption.','Vituo vya data vya Tier-4 na usimbuaji wa wakati halisi.'],
         ['clinical_notes','Editorial Precision','Usahihi wa Uhariri','Designed for high-end medical journal readability.','Imezapwa kwa usomaji wa jarida la matibabu la hali ya juu.'],
-        ['diversity_3','500+ Elite Facilities','Vituo 500+ Bora','Join Kenya\'s leading medical provider network.','Jiunge na mtandao wa watoa matibabu wanaongoza Kenya.'],
+        ['diversity_3','500+ Elite Facilities','Vituo 500+ Bora','Join Kenya\'s leading hospital network.','Jiunge na mtandao wa hospitali zinazoongoza Kenya.'],
       ] as [$ic,$en,$sw,$desc,$descSw]): ?>
       <div class="su-trust">
         <span class="material-symbols-outlined msf" style="color:var(--cp-secondary);flex-shrink:0;margin-top:2px"><?=$ic?></span>
@@ -161,11 +156,11 @@ include __DIR__ . '/_head.php';
       <?php endforeach; ?>
     </div>
     <div style="position:relative;z-index:1;font-size:.75rem;color:var(--cp-outline)">
-      © 2025 Clinical Precision — Planeazzy
+      © 2026 Clinical Precision — Planeazzy
     </div>
   </div>
 
-  <!-- ── Right form panel ────────────────────────────── -->
+  <!--  Right form panel  -->
   <div class="su-right">
     <div class="su-card">
 
@@ -173,6 +168,8 @@ include __DIR__ . '/_head.php';
       <a href="/hospital/onboarding/join.php"
          style="font-size:1.125rem;font-weight:900;color:var(--cp-primary);text-decoration:none;display:none;margin-bottom:24px;letter-spacing:-.03em"
          id="mobileBrand">Clinical Precision</a>
+
+         <a href="/hospital/onboarding/join.php">Back</a>
 
       <!-- Lang toggle -->
       <div style="display:flex;justify-content:flex-end;margin-bottom:20px">
@@ -196,33 +193,12 @@ include __DIR__ . '/_head.php';
         <span class="material-symbols-outlined" style="font-size:18px;flex-shrink:0">error</span>
         <span><?= htmlspecialchars($error) ?></span>
       </div>
-      <?php if ($devError && APP_ENV === 'development'): ?>
+      <?php if ($devError && APP_ENV === 'production'): ?>
       <div class="cp-alert-dev">
         <strong>Dev Error Detail:</strong><br><?= htmlspecialchars($devError) ?>
       </div>
       <?php endif; ?>
       <?php endif; ?>
-
-      <!-- Setup instructions (collapsed by default) -->
-       <!--
-      <details style="margin-bottom:20px;background:rgba(0,90,180,.04);border:1px solid rgba(0,90,180,.12);border-radius:10px;padding:12px 14px">
-        <summary style="font-size:.8125rem;font-weight:700;color:var(--cp-primary);cursor:pointer"
-                 data-en="⚙ First time setup? Click here" data-sw="⚙ Mara ya kwanza? Bonyeza hapa">
-          ⚙ First time setup? Click here
-        </summary>
-        <div style="margin-top:10px;font-size:.8125rem;color:var(--cp-on-surface-var);line-height:1.7">
-          <p data-en="Before creating an account, make sure you have run both SQL schema files in phpMyAdmin:" data-sw="Kabla ya kuunda akaunti, hakikisha umetekeleza faili zote mbili za SQL schema katika phpMyAdmin:">
-            Before creating an account, run both SQL files in phpMyAdmin:
-          </p>
-          <ol style="margin:8px 0 0 16px;font-family:monospace;font-size:.8125rem">
-            <li style="margin-bottom:4px"><code>config/schema.sql</code></li>
-            <li><code>hospital/onboarding/schema.sql</code></li>
-          </ol>
-          <p style="margin-top:8px" data-en="Also verify your DB credentials in config/config.php match your phpMyAdmin settings." data-sw="Pia thibitisha vitambulisho vya DB katika config/config.php vinalingana na mipangilio yako ya phpMyAdmin.">
-            Also verify your DB credentials in <code>config/config.php</code>.
-          </p>
-        </div>
-      </details>-->
 
       <form method="POST" novalidate>
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
@@ -314,13 +290,13 @@ include __DIR__ . '/_head.php';
       <!-- Wrong portal notice -->
       <div style="margin-top:18px;padding:13px;background:rgba(0,106,106,.06);border-radius:10px;border:1px solid rgba(0,106,106,.12)">
         <p style="font-size:.75rem;color:var(--cp-on-surface-var);margin-bottom:7px"
-           data-en="Registering as a Doctor or individual clinic? Use:" data-sw="Unajisajili kama Daktari au kliniki binafsi? Tumia:">
-          Registering as a Doctor or individual clinic? Use:
+           data-en="Registering as a Doctor (not a hospital)? Use:" data-sw="Unajisajili kama Daktari (si hospitali)? Tumia:">
+          Registering as a Doctor (not a hospital)? Use:
         </p>
-        <a href="/providers/register.php"
+        <a href="/doctors/onboarding/register.php"
            style="display:inline-flex;align-items:center;gap:6px;font-size:.8125rem;font-weight:700;color:var(--cp-secondary);text-decoration:none">
           <span class="material-symbols-outlined" style="font-size:15px">stethoscope</span>
-          <span data-en="Doctor / Provider Registration →" data-sw="Usajili wa Daktari / Mtoa Huduma →">Doctor / Provider Registration →</span>
+          <span data-en="Doctor Registration →" data-sw="Usajili wa Daktari →">Doctor Registration →</span>
         </a>
       </div>
 
