@@ -17,7 +17,7 @@ class PatientService
         $this->db = Database::getInstance();
     }
 
-    // ── REGISTRATION ─────────────────────────────────────────
+    //  REGISTRATION 
 
     public function register(array $d): array
     {
@@ -65,14 +65,18 @@ class PatientService
                 'email'      => $email,
                 'message'    => 'Account created! Check your email for the verification code.',
             ];
-        } catch (Exception $e) {
-            $this->db->rollback();
-            error_log('PatientService::register — ' . $e->getMessage());
-            return ['success' => false, 'errors' => ['Registration failed. Please try again.']];
+        } catch (Throwable $e) {
+            try { $this->db->rollback(); } catch (Throwable $rb) {}
+            $msg = $e->getMessage();
+            error_log('PatientService::register — ' . $msg . ' in ' . $e->getFile() . ':' . $e->getLine());
+            $devMsg = (defined('APP_ENV') && APP_ENV === 'production')
+                ? 'DB Error: ' . $msg
+                : 'Registration failed. Please try again.';
+            return ['success' => false, 'errors' => [$devMsg]];
         }
     }
 
-    // ── OTP VERIFICATION ─────────────────────────────────────
+    //  OTP VERIFICATION 
 
     public function verifyOtp(int $id, string $otp): array
     {
@@ -118,15 +122,19 @@ class PatientService
         return ['success' => true, 'message' => 'New code sent to ' . $p['email']];
     }
 
-    // ── LOGIN ─────────────────────────────────────────────────
+    //  LOGIN 
 
     public function login(string $email, string $password, string $ip): array
     {
         $email = Security::cleanEmail($email);
         if (!$email) return ['success' => false, 'message' => 'Invalid email address.'];
 
-        if (Security::isLockedOut($email, $ip)) {
-            return ['success' => false, 'message' => 'Too many failed attempts. Please wait 15 minutes.'];
+        try {
+            if (Security::isLockedOut($email, $ip)) {
+                return ['success' => false, 'message' => 'Too many failed attempts. Please wait 15 minutes.'];
+            }
+        } catch (Throwable $e) {
+            error_log('[PatientService] isLockedOut error: ' . $e->getMessage());
         }
 
         $p = $this->db->fetchOne(
@@ -136,7 +144,7 @@ class PatientService
         );
 
         if (!$p || !Security::verifyPassword($password, $p['password_hash'])) {
-            Security::recordAttempt($email, $ip);
+            try { Security::recordAttempt($email, $ip); } catch(Throwable $e) {}
             return ['success' => false, 'message' => 'Incorrect email or password.'];
         }
         if (!$p['is_verified']) {
@@ -147,7 +155,7 @@ class PatientService
             return ['success' => false, 'message' => 'Account suspended. Contact support@planeazzy.co.ke'];
         }
 
-        Security::clearAttempts($email);
+        try { Security::clearAttempts($email); } catch(Throwable $e) {}
         Security::regenerateSession();
         $this->db->query('UPDATE patients SET last_login=NOW() WHERE id=:id', [':id' => $p['id']]);
 
@@ -160,7 +168,7 @@ class PatientService
         return ['success' => true, 'patient' => ['id' => $p['id'], 'name' => $p['first_name']]];
     }
 
-    // ── PREFERENCES ──────────────────────────────────────────
+    //  PREFERENCES 
 
     public function savePreferences(int $id, string $service): array
     {
@@ -174,7 +182,7 @@ class PatientService
         return ['success' => true];
     }
 
-    // ── CONSENT MANAGEMENT ───────────────────────────────────
+    //  CONSENT MANAGEMENT 
 
     /**
      * Grant default consents after email verification.
@@ -249,7 +257,7 @@ class PatientService
         return $map;
     }
 
-    // ── GETTER ────────────────────────────────────────────────
+    //  GETTER 
 
     public function get(int $id): ?array
     {
@@ -262,7 +270,7 @@ class PatientService
         );
     }
 
-    // ── PRIVATE HELPERS ───────────────────────────────────────
+    //  PRIVATE HELPERS 
 
     private function _makeOtp(): array
     {

@@ -15,7 +15,7 @@ class ProviderService {
         $this->db = Database::getInstance();
     }
 
-    // ── Register ─────────────────────────────────────────────
+    //  Register 
     public function register(array $d): array {
         $type    = Security::clean($d['type']    ?? '');
         $name    = Security::clean($d['name']    ?? '');
@@ -72,7 +72,7 @@ class ProviderService {
         }
     }
 
-    // ── Verify OTP ───────────────────────────────────────────
+    //  Verify OTP 
     public function verifyOtp(int $id, string $otp): array {
         $p = $this->db->fetchOne(
             'SELECT otp_hash,otp_expiry,is_verified FROM providers WHERE id=:id',
@@ -92,7 +92,7 @@ class ProviderService {
         return ['success' => true, 'message' => 'Email verified! Your account is under review. We will activate it within 24 hours.'];
     }
 
-    // ── Resend OTP ───────────────────────────────────────────
+    //  Resend OTP 
     public function resendOtp(int $id): array {
         $p = $this->db->fetchOne(
             'SELECT email,name FROM providers WHERE id=:id AND is_verified=0',
@@ -108,7 +108,7 @@ class ProviderService {
         return ['success' => true, 'message' => 'New code sent to ' . $p['email']];
     }
 
-    // ── Login ────────────────────────────────────────────────
+    //  Login 
     public function login(string $email, string $password, string $ip): array {
         $email = Security::cleanEmail($email);
         if (!$email) return ['success' => false, 'message' => 'Invalid email address.'];
@@ -157,7 +157,7 @@ class ProviderService {
         return ['success' => true, 'provider' => ['id' => $p['id'], 'name' => $p['name']]];
     }
 
-    // ── Get Provider ─────────────────────────────────────────
+    //  Get Provider 
     public function get(int $id): ?array {
         return $this->db->fetchOne(
             'SELECT id,name,email,phone,type,specialty,description,license_number,
@@ -168,7 +168,7 @@ class ProviderService {
         );
     }
 
-    // ── Update availability ──────────────────────────────────
+    //  Update availability 
     public function setAvailability(int $id, bool $available): void {
         $this->db->query(
             'UPDATE providers SET is_available=:a WHERE id=:id',
@@ -176,7 +176,7 @@ class ProviderService {
         );
     }
 
-    // ── Private helpers ──────────────────────────────────────
+    //  Private helpers 
     private function _makeOtp(): array {
         $code = Security::generateOtp();
         return [

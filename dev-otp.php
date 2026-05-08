@@ -1,14 +1,14 @@
 <?php
 /**
  * Planeazzy — dev-otp.php
- * DEVELOPMENT ONLY — shows the latest OTP codes from the log file.
+ * production ONLY — shows the latest OTP codes from the log file.
  * DELETE THIS FILE before deploying to production!
  * Access: http://localhost/dev-otp.php
  */
 require_once __DIR__ . '/config/config.php';
 
 // Block in production
-if (APP_ENV !== 'development') {
+if (APP_ENV !== 'production') {
     http_response_code(404);
     exit('Not found.');
 }
@@ -107,7 +107,7 @@ $sessionOtp = $_SESSION['_dev_last_otp'] ?? null;
 
   <div class="badge">⚠ Dev Tool — Not for Production</div>
   <h1>OTP / Verification Code Viewer</h1>
-  <p class="subtitle">Shows the latest verification codes sent during development. Only accessible from localhost.</p>
+  <p class="subtitle">Shows the latest verification codes sent during production. Only accessible from localhost.</p>
 
   <div class="warning">
     <span style="font-size:18px;flex-shrink:0">⚠️</span>
@@ -186,7 +186,7 @@ $sessionOtp = $_SESSION['_dev_last_otp'] ?? null;
   <div class="section-title">If the log file is missing</div>
   <p style="font-size:13px;color:#64748b;line-height:1.8;margin-bottom:12px">On Windows XAMPP, create the logs folder manually:</p>
   <div class="raw-log" style="max-height:80px">mkdir <?= htmlspecialchars(ROOT_DIR) ?>\logs</div>
-  <p style="font-size:13px;color:#64748b;line-height:1.8;margin-top:12px">Or check via PHP that <code style="font-family:monospace;color:#93c5fd"><?= htmlspecialchars(ROOT_DIR) ?></code> is correct. OTPs are also shown inline on the verify page during development.</p>
+  <p style="font-size:13px;color:#64748b;line-height:1.8;margin-top:12px">Or check via PHP that <code style="font-family:monospace;color:#93c5fd"><?= htmlspecialchars(ROOT_DIR) ?></code> is correct. OTPs are also shown inline on the verify page during production.</p>
 
 </div>
 

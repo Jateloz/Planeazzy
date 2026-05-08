@@ -8,20 +8,26 @@ if (!defined('APP_NAME')) require_once dirname(__DIR__, 2) . '/config/config.php
 
 class HospitalMailer
 {
-    // ── SendGrid config — resolved at call time, not parse time ──
+    //  SendGrid config — resolved at call time, not parse time 
     private static function apiKey(): string    { return defined('SENDGRID_API_KEY')    ? SENDGRID_API_KEY    : ''; }
     private static function fromEmail(): string { return defined('SENDGRID_FROM_EMAIL') ? SENDGRID_FROM_EMAIL : ''; }
     private static function fromName(): string  { return defined('SENDGRID_FROM_NAME')  ? SENDGRID_FROM_NAME  : 'Planeazzy'; }
 
-    /* ── Public send methods ──────────────────────────────── */
+    /*  Public send methods  */
 
     /** Send OTP verification email */
     public static function sendOtp(
         string $to, string $name, string $otp, int $hospitalId = 0
     ): bool {
         $subject = 'Clinical Precision — Your Verification Code';
-        $html    = self::tplOtp($name, $otp);
-        $sent    = self::send($to, $name, $subject, $html);
+        //  Always log OTP to file first — readable even if email fails 
+        $logDir = defined('LOG_DIR') ? LOG_DIR : dirname(__DIR__) . '/logs/';
+        if (!is_dir($logDir)) @mkdir($logDir, 0775, true);
+        $line = date('[Y-m-d H:i:s]') . " HOSPITAL-OTP to=$to name=$name code=$otp" . PHP_EOL;
+        @file_put_contents($logDir . 'otp_codes.txt', $line, FILE_APPEND | LOCK_EX);
+        @file_put_contents($logDir . 'mail_dev.log',  $line, FILE_APPEND | LOCK_EX);
+        $html = self::tplOtp($name, $otp);
+        $sent = self::send($to, $name, $subject, $html);
         self::log($hospitalId, $to, 'otp', $subject, $sent);
         return $sent;
     }
@@ -53,7 +59,7 @@ class HospitalMailer
         string $to, string $name, string $facilityName,
         string $loginUrl, int $hospitalId = 0
     ): bool {
-        $subject = 'Clinical Precision — Your Facility is Now Active ✓';
+        $subject = 'Clinical Precision — Your Facility is Now Active ';
         $html    = self::tplApproved($name, $facilityName, $loginUrl);
         $sent    = self::send($to, $name, $subject, $html);
         self::log($hospitalId, $to, 'approved', $subject, $sent);
@@ -71,7 +77,7 @@ class HospitalMailer
         return $sent;
     }
 
-    /* ── Core SendGrid send ───────────────────────────────── */
+    /*  Core SendGrid send  */
 
     private static function send(
         string $to, string $toName, string $subject, string $html
@@ -92,13 +98,16 @@ class HospitalMailer
         }
 
         $payload = [
-            'personalizations' => [[
-                'to'      => [['email' => $to, 'name' => $toName]],
-                'subject' => $subject,
-            ]],
-            'from'    => ['email' => self::fromEmail(), 'name' => self::fromName()],
-            'content' => [['type' => 'text/html', 'value' => $html]],
-        ];
+    'personalizations' => [[
+        'to'      => [['email' => $to, 'name' => $toName]],
+        'subject' => $subject,
+    ]],
+    'from'    => ['email' => self::fromEmail(), 'name' => self::fromName()],
+    'content' => [
+        ['type' => 'text/plain', 'value' => strip_tags($html)], // Add this
+        ['type' => 'text/html',  'value' => $html]
+    ],
+];
 
         $ch = curl_init('https://api.sendgrid.com/v3/mail/send');
         curl_setopt_array($ch, [
@@ -110,9 +119,7 @@ class HospitalMailer
                 'Content-Type: application/json',
             ],
             CURLOPT_TIMEOUT        => 15,
-            // --- FIXED FOR HOSTINGER ---
-            CURLOPT_SSL_VERIFYPEER => false, // Disables the "trust anchor" check
-            CURLOPT_SSL_VERIFYHOST => 0,
+            CURLOPT_SSL_VERIFYPEER => true,
         ]);
         $body     = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -123,15 +130,15 @@ class HospitalMailer
         if (!$ok) {
             error_log("[HospitalMailer] SendGrid HTTP $httpCode | cURL: $err | to=$to | body=" . substr((string)$body, 0, 300));
         } else {
-            // Also log OTP to file in development for easy retrieval
-            if (defined('APP_ENV') && APP_ENV === 'development') {
+            // Also log OTP to file in production for easy retrieval
+            if (defined('APP_ENV') && APP_ENV === 'production') {
                 self::devLog("SENT [$httpCode] to=$to subject=$subject");
             }
         }
         return $ok;
     }
 
-    /* ── DB log ───────────────────────────────────────────── */
+    /*  DB log  */
 
     private static function log(
         int $hospitalId, string $email, string $type, string $subject, bool $sent
@@ -158,7 +165,7 @@ class HospitalMailer
         }
     }
 
-    /* ── Email Templates ──────────────────────────────────── */
+    /*  Email Templates  */
 
     private static function header(): string
     {
@@ -257,7 +264,7 @@ body{font-family:Inter,Arial,sans-serif;margin:0;padding:0;background:#f2f4f6;co
     ): string {
         return self::header() . '
 <div class="hdr" style="background:linear-gradient(135deg,#006a6a,#0d9488)">
-  <h1>Facility Activated ✓</h1>
+  <h1>Facility Activated </h1>
   <p>Clinical Precision — Provider Admin</p>
 </div>
 <div class="body">
